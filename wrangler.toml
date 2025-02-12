@@ -1,0 +1,4 @@
+name = "tetegram-potmg"
+main = "worker.js"
+compatibility_date = "2024-09-25"
+compatibility_flags = ["nodejs_compat"]
