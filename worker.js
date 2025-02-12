@@ -50,7 +50,7 @@ async function sendWelcomeMessage(chatId, user) {
         [{ text: "DEV", url: "https://t.me/pornhub_Developer" }]
     ];
 
-    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @LakshayDied`;
+    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhu_bdeveloper`;
 
     await fetch(`${BASE_URL}/sendVideo`, {
         method: 'POST',
@@ -114,7 +114,7 @@ async function sendAboutMessage(chatId, user) {
 
 ‣ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/${user.username}">${user.first_name}</a>
 ‣ ᴍʏ ʙᴇsᴛ ғʀɪᴇɴᴅ : <a href='tg://settings'>ᴛʜɪs ᴘᴇʀsᴏɴ</a> 
-‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/sumit_developer'>ᴛᴇᴄʜ ᴠᴊ</a> 
+‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/sumit_developer'>💫 Sx</a> 
 ‣ ʟɪʙʀᴀʀʏ : <a href=''></a> 
 ‣ ʟᴀɴɢᴜᴀɢᴇ : <a href=''></a> 
 ‣ ᴅᴀᴛᴀ ʙᴀsᴇ : <a href=''></a> 
