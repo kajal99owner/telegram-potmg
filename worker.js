@@ -63,7 +63,8 @@ async function sendWelcomeMessage(chatId, user) {
             video: videoUrl,
             caption: caption,
             parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons }
+            reply_markup: { inline_keyboard: buttons },
+            protect_content: true
         })
     });
 }
@@ -94,7 +95,8 @@ async function sendCommandsMenu(chatId) {
             video: videoUrl,
             caption: caption,
             parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons }
+            reply_markup: { inline_keyboard: buttons },
+            protect_content: true
         })
     });
 }
@@ -105,7 +107,8 @@ async function deleteMessage(chatId, messageId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             chat_id: chatId,
-            message_id: messageId
+            message_id: messageId,
+            protect_content: true
         })
     });
 }
@@ -131,7 +134,8 @@ async function sendAboutMessage(chatId, user) {
         body: JSON.stringify({
             chat_id: chatId,
             text: aboutMessage,
-            parse_mode: 'HTML'
+            parse_mode: 'HTML',
+            protect_content: true
         })
     });
 }
@@ -155,7 +159,8 @@ async function sendVbMenu(chatId) {
         body: JSON.stringify({
             chat_id: chatId,
             text: "🤗 Welcome to Lx Bot 🌺",
-            reply_markup: keyboard
+            reply_markup: keyboard,
+            protect_content: true
         })
     });
 }
