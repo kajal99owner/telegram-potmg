@@ -34,6 +34,9 @@ async function handleUpdate(update) {
             await deleteMessage(chatId, update.message.message_id);
             await sendCommandsMenu(chatId);
         }
+        else if (text === '/about') {
+            await sendAboutMessage(chatId, user);
+        }
         return new Response('OK');
     }
 
@@ -104,6 +107,33 @@ async function deleteMessage(chatId, messageId) {
     });
 }
 
+// about
+async function sendAboutMessage(chatId, user) {
+    const aboutMessage = `
+<b><blockquote>⍟───[ MY ᴅᴇᴛᴀɪʟꜱ ]───⍟</blockquote>
+
+‣ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/${user.username}">${user.first_name}</a>
+‣ ᴍʏ ʙᴇsᴛ ғʀɪᴇɴᴅ : <a href='tg://settings'>ᴛʜɪs ᴘᴇʀsᴏɴ</a> 
+‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/kingvj01'>ᴛᴇᴄʜ ᴠᴊ</a> 
+‣ ʟɪʙʀᴀʀʏ : <a href=''></a> 
+‣ ʟᴀɴɢᴜᴀɢᴇ : <a href=''></a> 
+‣ ᴅᴀᴛᴀ ʙᴀsᴇ : <a href=''></a> 
+‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href=''></a> 
+‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : ᴠ [sᴛᴀʙʟᴇ]</b>
+    `;
+
+    await fetch(`${BASE_URL}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            text: aboutMessage,
+            parse_mode: 'HTML'
+        })
+    });
+}
+
+//
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
 });
