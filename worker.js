@@ -149,7 +149,7 @@ async function sendVbMenu(chatId) {
         one_time_keyboard: true
     };
 
-    await fetch(${BASE_URL}/sendMessage, {
+    await fetch(`${BASE_URL}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
