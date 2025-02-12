@@ -115,11 +115,11 @@ async function sendAboutMessage(chatId, user) {
 ‣ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/${user.username}">${user.first_name}</a>
 ‣ ᴍʏ ʙᴇsᴛ ғʀɪᴇɴᴅ : <a href='tg://settings'>ᴛʜɪs ᴘᴇʀsᴏɴ</a> 
 ‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/sumit_developer'>💫 Sx</a> 
-‣ ʟɪʙʀᴀʀʏ : <a href=''></a> 
-‣ ʟᴀɴɢᴜᴀɢᴇ : <a href=''></a> 
-‣ ᴅᴀᴛᴀ ʙᴀsᴇ : <a href=''></a> 
-‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href=''></a> 
-‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : ᴠ [sᴛᴀʙʟᴇ]</b>
+‣ ʟɪʙʀᴀʀʏ : <a href='Cloudflare.com'></a> 
+‣ ʟᴀɴɢᴜᴀɢᴇ : <a href='JS 💻'></a> 
+‣ ᴅᴀᴛᴀ ʙᴀsᴇ : <a href='Cloudflare.com'></a> 
+‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href='ᴄʟᴏᴜᴅғʟᴀʀᴇ ⚡'></a> 
+‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : v1.0 [sᴛᴀʙʟᴇ]</b>
     `;
 
     await fetch(`${BASE_URL}/sendMessage`, {
