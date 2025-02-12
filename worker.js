@@ -37,6 +37,9 @@ async function handleUpdate(update) {
         else if (text === '/about') {
             await sendAboutMessage(chatId, user);
         }
+        else if (text === '/VBMENU') {
+            await sendVbMenu(chatId);
+        }
         return new Response('OK');
     }
 
@@ -134,6 +137,31 @@ async function sendAboutMessage(chatId, user) {
 }
 
 //
+async function sendVbMenu(chatId) {
+    const keyboard = {
+        keyboard: [
+            ["🌺 CP", "🇮🇳 Desi"],
+            ["🇬🇧 Forener", "🐕‍🦺 Animal"],
+            ["💕 Webseries", "💑 Gay Cp"],
+            ["💸 𝘽𝙐𝙔 𝙑𝙄𝙋 💸"]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+    };
+
+    await fetch(${BASE_URL}/sendMessage, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            text: "🤗 Welcome to Lx Bot 🌺",
+            reply_markup: keyboard
+        })
+    });
+}
+
+//
+
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
 });
