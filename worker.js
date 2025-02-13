@@ -49,7 +49,7 @@ async function handleUpdate(update) {
 async function sendWelcomeMessage(chatId, user) {
     const videoUrl = "https://t.me/kajal_developer/57";
     const buttons = [
-        [{ text: "Commands", callback_data: "/Commands" }],
+        [{ text: "menu", callback_data: "/Commands" }],
         [{ text: "DEV", url: "https://t.me/pornhub_Developer" }]
     ];
 
@@ -73,7 +73,7 @@ async function sendCommandsMenu(chatId) {
     const videoUrl = "https://t.me/kajal_developer/57"; 
     const buttons = [
         [
-            { text: "Gateways", callback_data: "/black" },
+            { text: "video 🌏", callback_data: "/black" },
             { text: "Tools", callback_data: "/tools" }
         ],
         [
@@ -81,11 +81,11 @@ async function sendCommandsMenu(chatId) {
             { text: "DEV", url: "https://t.me/pornhub_Developer" }
         ],
         [
-            { text: "◀️ Go Back", callback_data: "/black" }
+            { text: "◀️ Go Back", callback_data: "/start" }
         ]
     ];
 
-    const caption = `<b>[𖤐] XS developer :</b>\n\n<b>[ϟ] video Tools :</b>\n\n<b>[ᛟ] video - 0</b>\n<b>[ᛟ] video - 0</b>\n<b>[ᛟ] Tools - 2</b>`;
+    const caption = `<b>[𖤐] XS :</b>\n\n<b>[ϟ] video Tools :</b>\n\n<b>[ᛟ] video - 0</b>\n<b>[ᛟ] video - 0</b>\n<b>[ᛟ] Tools - 2</b>`;
 
     await fetch(`${BASE_URL}/sendVideo`, {
         method: 'POST',
@@ -121,9 +121,9 @@ async function sendAboutMessage(chatId, user) {
 ‣ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/${user.username}">${user.first_name}</a>
 ‣ ᴍʏ ʙᴇsᴛ ғʀɪᴇɴᴅ : <a href='tg://settings'>ᴛʜɪs ᴘᴇʀsᴏɴ</a> 
 ‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/sumit_developer'>💫 Sx</a> 
-‣ ʟɪʙʀᴀʀʏ : <a href='Cloudflare.com'>Cloudflare.com</a> 
+‣ ʟɪʙʀᴀʀʏ : <a href='Cloudflare.com'>Cloudflare</a> 
 ‣ ʟᴀɴɢᴜᴀɢᴇ : <a href='JS 💻'>JS 💻</a> 
-‣ ᴅᴀᴛᴀ ʙᴀsᴇ : <a href='Cloudflare.com'>Cloudflare.com</a> 
+‣ ᴅᴀᴛᴀ ʙᴀsᴇ : <a href='Cloudflare.com'>Cloudflare</a> 
 ‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href='ᴄʟᴏᴜᴅғʟᴀʀᴇ ⚡'>ᴄʟᴏᴜᴅғʟᴀʀᴇ ⚡</a> 
 ‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : v1.0 [sᴛᴀʙʟᴇ]</b>
     `;
