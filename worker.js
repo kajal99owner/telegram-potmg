@@ -53,7 +53,7 @@ async function handleUpdate(update) {
             await sendVbMenu(chatId);
         }
         else if (text === '/video1') {
-            await sendvideo1Menu(chatId);
+            await sendvideo1Series(chatId);
         }
         return new Response('OK');
     }
@@ -181,6 +181,7 @@ async function sendVbMenu(chatId) {
 }
 
 //
+
 async function sendvideo1Series(chatId) {
   // Send all videos
   for (let i = 0; i < VIDEO_LINKS.length; i++) {
