@@ -55,6 +55,9 @@ async function handleUpdate(update) {
         else if (text === 'video1') {
             await sendVideo1Series(chatId);
         }
+        else if (text === '/info') {
+            await sendUserInfo(chatId, user);
+        }
         return new Response('OK');
     }
 
@@ -204,6 +207,43 @@ async function sendVideo(chatId, videoUrl, caption) {
       disable_web_page_preview: true
     })
   });
+}
+
+
+// id info 
+async function sendUserInfo(chatId, user) {
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    const username = user.username ? `@${user.username}` : 'None';
+    const userLink = user.username ? `https://t.me/${user.username}` : 'None';
+    const phoneNumber = user.phone_number ? user.phone_number : '!';
+    
+    const infoMessage = `
+<code>○➲ ɪᴅ: ${user.id}
+➲ ᴅᴄ_ɪᴅ: N/A
+➲ ꜰɪʀꜱᴛ ɴᴀᴍᴇ: ${escapeHtml(user.first_name || 'None')}
+➲ ʟᴀꜱᴛ ɴᴀᴍᴇ: ${escapeHtml(user.last_name || 'None')}
+➲ ꜰᴜʟʟ ɴᴀᴍᴇ: ${escapeHtml(fullName)}
+➲ ᴜꜱᴇʀɴᴀᴍᴇ: ${username}
+➲ ɪꜱ_ᴠᴇʀɪꜰɪᴇᴅ: ${user.is_verified ? 'Yes' : 'No'}
+➲ ɪꜱ_ʀᴇꜱᴛʀɪᴄᴛᴇᴅ: ${user.is_restricted ? 'Yes' : 'No'}
+➲ ɪꜱ_ꜱᴄᴀᴍ: ${user.is_scam ? 'Yes' : 'No'}
+➲ ɪꜱ_ꜰᴀᴋᴇ: ${user.is_fake ? 'Yes' : 'No'}
+➲ ɪꜱ_ᴩʀᴇᴍɪᴜᴍ: ${user.is_premium ? 'Yes' : 'No'}
+➲ ᴍᴇɴᴛɪᴏɴ: <a href="${userLink}">${username}</a>
+➲ ʟɪɴᴋ : <a href="${userLink}">${userLink}</a>
+➲ ᴩʜᴏɴᴇ ɴᴏ: ${phoneNumber}</code>
+    `;
+
+    await fetch(`${BASE_URL}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            text: infoMessage,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        })
+    });
 }
 //
 
