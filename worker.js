@@ -59,7 +59,7 @@ async function handleUpdate(update) {
             await sendUserInfo(chatId, user);
         }
         else if (text === '/hoto') {
-            await sendhotoSeries(chatId, user);
+            await sendPhotos(chatId);
         }
         return new Response('OK');
     }
@@ -212,7 +212,6 @@ async function sendVideo(chatId, videoUrl, caption) {
   });
 }
 
-
 // id info 
 async function sendUserInfo(chatId, user) {
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
@@ -248,12 +247,13 @@ async function sendUserInfo(chatId, user) {
         })
     });
 }
-// photo1
-async function sendhotoSeries(chatId) {
+
+//
+async function sendPhotos(chatId) {
     const photoUrls = [
         "https://t.me/kajal_developer/58",
-        "https://example.com/photo2.jpg",
-        "https://example.com/photo3.jpg",
+        "https://t.me/kajal_developer/58",
+        "https://t.me/kajal_developer/58",
         "https://example.com/photo4.jpg",
         "https://example.com/photo5.jpg",
         "https://example.com/photo6.jpg",
@@ -265,7 +265,8 @@ async function sendhotoSeries(chatId) {
         "https://example.com/photo12.jpg"
     ];
 
-    const button = [
+    const channelName = "pornhub_Developer"; // Replace with your channel username
+    const buttons = [
         [
             {
                 text: "Join " + channelName,
@@ -281,11 +282,11 @@ async function sendhotoSeries(chatId) {
             body: JSON.stringify({
                 chat_id: chatId,
                 photo: photoUrls[i],
-                caption: "Click the button below to join the channel:",
-                reply_markup: { inline_keyboard: button }
+                reply_markup: { inline_keyboard: buttons }
             })
         });
     }
+}
 
 //
 addEventListener('fetch', event => {
