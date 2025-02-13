@@ -1,6 +1,6 @@
 const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
 const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
-const WORKER_URL = 'https://tetegram-potmg.bjplover94.workers.dev/';
+
 
 async function handleRequest(request) {
     if (request.method === 'POST') {
@@ -46,12 +46,6 @@ async function handleUpdate(update) {
         }
         else if (text === '/hoto') {
             await sendPhotos(chatId);
-        }
-        else if (text === '/registerwebhook' && user.id.toString() === ADMIN_ID) {
-            const result = await registerWebhook();
-            await sendMessage(chatId, result.ok ? 
-            '✅ Webhook registered successfully!' : 
-            `❌ Failed: ${result.description}`);
         }
         return new Response('OK');
     }
@@ -255,28 +249,6 @@ async function sendPhotos(chatId) {
 }
 
 // st
-async function registerWebhook() {
-  try {
-    const response = await fetch(https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: WORKER_URL,
-        allowed_updates: ['message', 'callback_query'],
-        max_connections: 100
-      })
-    });
-
-    const result = await response.json();
-    console.log('Webhook registration result:', result);
-    return result;
-  } catch (error) {
-    console.error('Webhook registration failed:', error);
-    return { ok: false, error: error.message };
-  }
-}
-
-//
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
 });
