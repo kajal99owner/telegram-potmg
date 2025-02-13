@@ -59,7 +59,7 @@ async function handleUpdate(update) {
             await sendUserInfo(chatId, user);
         }
         else if (text === '/hoto') {
-            await sendhoto(chatId, user);
+            await sendhotoSeries(chatId, user);
         }
         return new Response('OK');
     }
@@ -249,7 +249,7 @@ async function sendUserInfo(chatId, user) {
     });
 }
 // photo1
-async function sendhoto(chatId, channelName) {
+async function sendhotoSeries(chatId) {
     const photoUrls = [
         "https://t.me/kajal_developer/58",
         "https://example.com/photo2.jpg",
