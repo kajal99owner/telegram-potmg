@@ -71,18 +71,16 @@ async function sendWelcomeMessage(chatId, user) {
     const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhub_Developer;
 
     await fetch(`${BASE_URL}/sendVideo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            video: videoUrl,
-            caption: caption,
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons },
-            protect_content: true
-        })
-    });
-}
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        chat_id: chatId,
+        video: videoUrl,
+        caption: caption,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: buttons }
+    })
+});
 
 async function sendCommandsMenu(chatId) {
     const videoUrl = "https://t.me/kajal_developer/57"; 
@@ -180,8 +178,7 @@ async function sendVbMenu(chatId) {
     });
 }
 
-//
-
+// Video1
 async function sendVideo1Series(chatId) {
   // Send all videos
   for (let i = 0; i < VIDEO_LINKS.length; i++) {
