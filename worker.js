@@ -193,7 +193,7 @@ async function sendvideo1Series(chatId) {
 }
 
 async function sendVideo(chatId, videoUrl, caption) {
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo`, {
+  await fetch(`${BASE_URL}/sendVideo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
