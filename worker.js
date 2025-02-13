@@ -68,20 +68,22 @@ async function sendWelcomeMessage(chatId, user) {
         [{ text: "DEV", url: "https://t.me/pornhub_Developer" }]
     ];
 
-    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhub_Developer;
+    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhub_Developer`;
 
     await fetch(`${BASE_URL}/sendVideo`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        chat_id: chatId,
-        video: videoUrl,
-        caption: caption,
-        parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: buttons }
-    })
-});
-
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            video: videoUrl,
+            caption: caption,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buttons },
+            protect_content: true
+        })
+    });
+}
+//
 async function sendCommandsMenu(chatId) {
     const videoUrl = "https://t.me/kajal_developer/57"; 
     const buttons = [
@@ -113,7 +115,7 @@ async function sendCommandsMenu(chatId) {
         })
     });
 }
-
+//
 async function deleteMessage(chatId, messageId) {
     await fetch(`${BASE_URL}/deleteMessage`, {
         method: 'POST',
