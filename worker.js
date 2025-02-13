@@ -53,7 +53,7 @@ async function handleUpdate(update) {
             await sendVbMenu(chatId);
         }
         else if (text === '/video1') {
-            await sendvideo1Series(chatId);
+            await sendVideo1Series(chatId);
         }
         return new Response('OK');
     }
@@ -182,7 +182,7 @@ async function sendVbMenu(chatId) {
 
 //
 
-async function sendvideo1Series(chatId) {
+async function sendVideo1Series(chatId) {
   // Send all videos
   for (let i = 0; i < VIDEO_LINKS.length; i++) {
     await sendVideo(chatId, VIDEO_LINKS[i], `#${i + 1}`);
@@ -201,7 +201,7 @@ async function sendVideo(chatId, videoUrl, caption) {
       chat_id: chatId,
       video: videoUrl,
       caption: caption,
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       disable_web_page_preview: true
     })
   });
