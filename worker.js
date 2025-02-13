@@ -1,5 +1,17 @@
 const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
 const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+const VIDEO_LINKS = [
+  "https://t.me/kajal_developer/7",
+  "https://t.me/kajal_developer/7",
+  "https://t.me/developer_64/28",
+  "https://t.me/developer_64/29",
+  "https://t.me/developer_64/30",
+  "https://t.me/developer_64/31",
+  "https://t.me/developer_64/32",
+  "https://t.me/developer_64/33",
+  "https://t.me/developer_64/34",
+  "https://t.me/developer_64/35"
+];
 
 async function handleRequest(request) {
     if (request.method === 'POST') {
@@ -40,6 +52,9 @@ async function handleUpdate(update) {
         else if (text === '/VBMENU') {
             await sendVbMenu(chatId);
         }
+        else if (text === '/video1') {
+            await sendvideo1Menu(chatId);
+        }
         return new Response('OK');
     }
 
@@ -53,7 +68,7 @@ async function sendWelcomeMessage(chatId, user) {
         [{ text: "DEV", url: "https://t.me/pornhub_Developer" }]
     ];
 
-    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhu_bdeveloper`;
+    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhub_Developer;
 
     await fetch(`${BASE_URL}/sendVideo`, {
         method: 'POST',
@@ -73,7 +88,7 @@ async function sendCommandsMenu(chatId) {
     const videoUrl = "https://t.me/kajal_developer/57"; 
     const buttons = [
         [
-            { text: "video 🌏", callback_data: "/black" },
+            { text: "video 🌏", callback_data: "/video1" },
             { text: "Tools", callback_data: "/tools" }
         ],
         [
@@ -165,6 +180,31 @@ async function sendVbMenu(chatId) {
     });
 }
 
+//
+async function sendvideo1Series(chatId) {
+  // Send all videos
+  for (let i = 0; i < VIDEO_LINKS.length; i++) {
+    await sendVideo(chatId, VIDEO_LINKS[i], `#${i + 1}`);
+  }
+
+  // Send developer button
+  const buttons = [[{ text: "⚡ Developer", url: DEVELOPER_LINK }]];
+  await sendMessage(chatId, "👇", buttons);
+}
+
+async function sendVideo(chatId, videoUrl, caption) {
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      video: videoUrl,
+      caption: caption,
+      parse_mode: 'Markdown',
+      disable_web_page_preview: true
+    })
+  });
+}
 //
 
 addEventListener('fetch', event => {
