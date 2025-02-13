@@ -58,6 +58,9 @@ async function handleUpdate(update) {
         else if (text === '/info') {
             await sendUserInfo(chatId, user);
         }
+        else if (text === '/hoto') {
+            await sendhoto(chatId, user);
+        }
         return new Response('OK');
     }
 
@@ -245,8 +248,46 @@ async function sendUserInfo(chatId, user) {
         })
     });
 }
-//
+// photo1
+async function sendhoto(chatId, channelName) {
+    const photoUrls = [
+        "https://t.me/kajal_developer/58",
+        "https://example.com/photo2.jpg",
+        "https://example.com/photo3.jpg",
+        "https://example.com/photo4.jpg",
+        "https://example.com/photo5.jpg",
+        "https://example.com/photo6.jpg",
+        "https://example.com/photo7.jpg",
+        "https://example.com/photo8.jpg",
+        "https://example.com/photo9.jpg",
+        "https://example.com/photo10.jpg",
+        "https://example.com/photo11.jpg",
+        "https://example.com/photo12.jpg"
+    ];
 
+    const button = [
+        [
+            {
+                text: "Join " + channelName,
+                url: "https://t.me/" + channelName
+            }
+        ]
+    ];
+
+    for (let i = 0; i < photoUrls.length; i++) {
+        await fetch(`${BASE_URL}/sendPhoto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                photo: photoUrls[i],
+                caption: "Click the button below to join the channel:",
+                reply_markup: { inline_keyboard: button }
+            })
+        });
+    }
+
+//
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
 });
