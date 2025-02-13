@@ -52,7 +52,7 @@ async function handleUpdate(update) {
         else if (text === '/VBMENU') {
             await sendVbMenu(chatId);
         }
-        else if (text === '/video1') {
+        else if (text === 'video1') {
             await sendVideo1Series(chatId);
         }
         return new Response('OK');
@@ -88,7 +88,7 @@ async function sendCommandsMenu(chatId) {
     const videoUrl = "https://t.me/kajal_developer/57"; 
     const buttons = [
         [
-            { text: "video 🌏", callback_data: "/video1" },
+            { text: "video 🌏", callback_data: "video1" },
             { text: "Tools", callback_data: "/tools" }
         ],
         [
