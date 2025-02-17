@@ -3,32 +3,42 @@ addEventListener('fetch', event => {
 })
 
 async function handleRequest(request) {
-  const { searchParams } = new URL(request.url)
-  const url = searchParams.get('url')
+  const { pathname } = new URL(request.url)
+  const telegramToken = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'
+  const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}`
 
-  if (!url) {
-    return new Response('URL parameter is missing', { status: 400 })
+  if (pathname === '/webhook') {
+    const update = await request.json()
+    const chatId = update.message?.chat?.id
+    const text = update.message?.text
+
+    if (text === '/register_gmail') {
+      const responseText = registerGmail()
+      await fetch(`${telegramApiUrl}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: responseText })
+      })
+    }
+
+    return new Response('OK', { status: 200 })
   }
 
-  try {
-    const apiUrl = `https://www.instagram.com/oembed/?url=${url}`
-    const apiResponse = await fetch(apiUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'
-      }
-    })
-    const apiData = await apiResponse.json()
-    const mediaUrl = apiData.thumbnail_url
+  return new Response('Not Found', { status: 404 })
+}
 
-    const mediaResponse = await fetch(mediaUrl)
-    const mediaBlob = await mediaResponse.blob()
+function registerGmail() {
+  const randomString = () => Math.random().toString(36).substring(2, 8)
+  const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
 
-    return new Response(mediaBlob, {
-      headers: {
-        'Content-Type': mediaResponse.headers.get('Content-Type')
-      }
-    })
-  } catch (error) {
-    return new Response('Failed to fetch media', { status: 500 })
-  }
+  const email = `${randomString()}@gmail.com`
+  const password = randomString()
+  const firstName = randomString()
+  const surname = randomString()
+  const day = randomNumber(1, 28)
+  const month = randomNumber(1, 12)
+  const year = randomNumber(1980, 2005)
+  const gender = ['male', 'female'][randomNumber(0, 1)]
+
+  return `Email: ${email}\nPassword: ${password}\nFirst name: ${firstName}\nSurname: ${surname}\nDay: ${day}\nMonth: ${month}\nYear: ${year}\nGender: ${gender}`
 }
