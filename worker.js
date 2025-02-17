@@ -1,44 +1,123 @@
+const USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
+
 addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
+    event.respondWith(handleRequest(event.request));
+});
 
 async function handleRequest(request) {
-  const userAgent = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
-  const { searchParams } = new URL(request.url);
-  const videoUrl = searchParams.get('url');
+    if (request.method === 'OPTIONS') {
+        return handleOptions();
+    }
+    
+    const url = new URL(request.url);
+    const ytUrl = url.searchParams.get('url');
+    
+    if (!ytUrl) {
+        return new Response(JSON.stringify({ error: "Missing 'url' parameter" }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
-  if (!videoUrl) {
-    return new Response('Please add ?url=YOUTUBE_URL parameter', { status: 400 });
-  }
+    try {
+        const videoId = getVideoId(ytUrl);
+        if (!videoId) {
+            throw new Error('Invalid YouTube URL');
+        }
 
-  try {
-    const videoId = getVideoId(videoUrl);
-    if (!videoId) return new Response('Invalid YouTube URL', { status: 400 });
+        const info = await getVideoInfo(videoId);
+        return new Response(JSON.stringify(info), {
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS'
+            }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+        });
+    }
+}
 
-    const apiUrl = `https://yt.lemnoslife.com/videos?part=format&id=${videoId}`;
-    const response = await fetch(apiUrl, {
-      headers: { 'User-Agent': userAgent }
+async function getVideoInfo(videoId) {
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    const response = await fetch(url, {
+        headers: { 'User-Agent': USER_AGENT }
     });
     
-    const data = await response.json();
-    const formats = data.items[0].format;
+    if (!response.ok) throw new Error('Failed to fetch video page');
     
-    let html = `<h1>Available Formats:</h1>`;
-    formats.forEach(format => {
-      html += `<a href="${format.url}" target="_blank">${format.mimeType} - ${format.qualityLabel}</a><br>`;
-    });
+    const html = await response.text();
+    const playerResponse = getPlayerResponse(html);
+    
+    if (!playerResponse) throw new Error('Failed to extract video data');
+    
+    const { videoDetails, streamingData } = playerResponse;
+    const formats = [...streamingData.formats, ...streamingData.adaptiveFormats]
+        .filter(format => format.url)
+        .map(format => ({
+            url: format.url,
+            mimeType: format.mimeType,
+            quality: format.qualityLabel || format.audioQuality,
+            bitrate: format.bitrate,
+            contentLength: format.contentLength,
+            audioSampleRate: format.audioSampleRate
+        }));
 
-    return new Response(html, {
-      headers: { 'Content-Type': 'text/html' }
-    });
+    return {
+        title: videoDetails.title,
+        author: videoDetails.author,
+        lengthSeconds: videoDetails.lengthSeconds,
+        viewCount: videoDetails.viewCount,
+        formats: formats
+    };
+}
 
-  } catch (error) {
-    return new Response(`Error: ${error.message}`, { status: 500 });
-  }
+function getPlayerResponse(html) {
+    const patterns = [
+        /var ytInitialPlayerResponse\s*=\s*({.+?})\s*;\s*(?:var|<\/script)/,
+        /ytInitialPlayerResponse\s*=\s*({.+?})\s*;/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match) {
+            try {
+                return JSON.parse(match[1]);
+            } catch (e) {
+                continue;
+            }
+        }
+    }
+    return null;
 }
 
 function getVideoId(url) {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
+    const patterns = [
+        /v=([^&#]+)/,
+        /youtu\.be\/([^?#]+)/,
+        /embed\/([^?#]+)/,
+        /\/live\/([^?#]+)/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) return match[1];
+    }
+    return null;
+}
+
+function handleOptions() {
+    return new Response(null, {
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        }
+    });
 }
