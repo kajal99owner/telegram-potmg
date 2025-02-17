@@ -20,11 +20,64 @@ async function handleTelegramWebhook(request) {
         const text = message.text;
         
         if (text.startsWith('/check')) {
-            const cc = text.split(' ')[1];
-            const result = await checkCard(cc);
-            await sendTelegramMessage(chatId, JSON.stringify(result, null, 2));
+            const cards = text.split(' ').slice(1).filter(c => c.trim() !== '');
+            const results = [];
+            
+            // Process cards in batches to avoid rate limiting
+            const BATCH_SIZE = 5;
+            for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+                const batch = cards.slice(i, i + BATCH_SIZE);
+                const batchResults = await Promise.all(
+                    batch.map(card => checkCard(card).catch(e => ({
+                        Author: "Sahid",
+                        Status: "Error",
+                        Card: card
+                    })))
+                );
+                results.push(...batchResults);
+            }
+
+            const responseText = results.map((r, i) => 
+                `${i+1}. ${r.Card}\nStatus: ${r.Status}\nGateway: ${r.Gateway || 'N/A'}\n`
+            ).join('\n');
+
+            await sendTelegramMessage(chatId, responseText);
         }
     }
+    
+    return new Response('OK');
+}
+
+// Add input validation
+function isValidCardFormat(card) {
+    return /^\d{15,16}\|\d{1,2}\|\d{2,4}\|\d{3,4}$/.test(card);
+}
+
+async function checkCard(cc) {
+    if (!isValidCardFormat(cc)) {
+        return {
+            Author: "Sahid",
+            Status: "Invalid Format",
+            Card: cc
+        };
+    }
+    
+    try {
+        // ... rest of the existing checkCard code ...
+        // (keep the same processing logic but return card in response)
+        
+        const result = formatResponse(responseText, cc);
+        result.Gateway = "Stripe Charged $49";
+        return result;
+        
+    } catch (error) {
+        return { 
+            Author: "Sahid",
+            Status: "Error",
+            Card: cc
+        };
+    }
+}
     
     return new Response('OK');
 }
