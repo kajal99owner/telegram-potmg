@@ -4,88 +4,63 @@ addEventListener('fetch', event => {
 
 async function handleRequest(request) {
   if (request.method === 'POST') {
-    const BOT_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
-    const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
-    const RAPIDAPI_KEY = 'db42e4f68fmshe9a243ed929713ap1fa72ajsnb431ef7a74ac';
+    const update = await request.json()
     
-    try {
-      const update = await request.json();
-      const message = update.message || update.channel_post;
+    // Verify it's a message with /url command
+    if (update.message && update.message.text.startsWith('/url')) {
+      const chatId = update.message.chat.id
+      const instagramUrl = update.message.text.split(' ')[1]
       
-      if (message && message.text && message.text.startsWith('/url')) {
-        const instaUrl = message.text.split(' ')[1];
-        const chatId = message.chat.id;
-        
-        if (!instaUrl) {
-          await sendMessage(chatId, 'Please provide an Instagram URL after /url command\nExample: /url https://www.instagram.com/p/CxLWFNksXOE/', TELEGRAM_API);
-          return new Response('OK');
-        }
+      if (!instagramUrl) {
+        return sendTelegramMessage(chatId, 'Please provide an Instagram URL after /url command')
+      }
 
-        const apiResponse = await fetchInstagramData(instaUrl, RAPIDAPI_KEY);
+      try {
+        // Call Instagram API
+        const apiResponse = await fetchInstagramData(instagramUrl)
+        const mediaUrl = apiResponse.media || apiResponse[0]?.url // Handle carousel posts
         
-        if (apiResponse.media) {
-          if (apiResponse.media.match(/\.mp4\b/)) {
-            await sendVideo(chatId, apiResponse.media, TELEGRAM_API);
-          } else {
-            await sendPhoto(chatId, apiResponse.media, TELEGRAM_API);
-          }
+        if (mediaUrl) {
+          await sendTelegramMessage(chatId, `Here's your download link: ${mediaUrl}`)
         } else {
-          await sendMessage(chatId, 'Failed to download media. Please check the URL and try again.', TELEGRAM_API);
+          await sendTelegramMessage(chatId, 'No media found in this post')
         }
+        
+      } catch (error) {
+        await sendTelegramMessage(chatId, `Error: ${error.message}`)
       }
-      return new Response('OK');
-    } catch (error) {
-      console.error('Error:', error);
-      return new Response('Error processing request', { status: 500 });
     }
+    return new Response('OK')
   }
-  return new Response('Method not allowed', { status: 405 });
+  return new Response('Method not allowed', { status: 405 })
 }
 
-async function fetchInstagramData(url, apiKey) {
-  const encodedUrl = encodeURIComponent(url);
-  const response = await fetch(
-    `https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert?url=${encodedUrl}`,
-    {
-      headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36'
-      }
+async function fetchInstagramData(url) {
+  const apiUrl = `https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert?url=${encodeURIComponent(url)}`
+  
+  const response = await fetch(apiUrl, {
+    headers: {
+      'x-rapidapi-key': 'db42e4f68fmshe9a243ed929713ap1fa72ajsnb431ef7a74ac',
+      'x-rapidapi-host': 'instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36'
     }
-  );
-  return await response.json();
+  })
+  
+  if (!response.ok) throw new Error('Failed to fetch Instagram data')
+  return response.json()
 }
 
-async function sendMessage(chatId, text, telegramApi) {
-  await fetch(`${telegramApi}/sendMessage`, {
+async function sendTelegramMessage(chatId, text) {
+  const botToken = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'
+  const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`
+  
+  await fetch(telegramUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       chat_id: chatId,
-      text: text
+      text: text,
+      parse_mode: 'HTML'
     })
-  });
-}
-
-async function sendPhoto(chatId, photoUrl, telegramApi) {
-  await fetch(`${telegramApi}/sendPhoto`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      photo: photoUrl
-    })
-  });
-}
-
-async function sendVideo(chatId, videoUrl, telegramApi) {
-  await fetch(`${telegramApi}/sendVideo`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      video: videoUrl
-    })
-  });
+  })
 }
