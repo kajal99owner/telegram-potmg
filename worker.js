@@ -1,73 +1,85 @@
-const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
-const API_HOST = 'social-download-all-in-one.p.rapidapi.com';
-const RAPIDAPI_KEY = 'db42e4f68fmshe9a243ed929713ap1fa72ajsnb431ef7a74ac';
+addEventListener('fetch', event => {
+    event.respondWith(handleRequest(event.request));
+});
 
 async function handleRequest(request) {
-  if (request.method === 'POST') {
-    const update = await request.json();
-    const message = update.message;
-    if (message && message.text) {
-      const chatId = message.chat.id;
-      const url = message.text;
-      
-      try {
-        // Call Social Download API
-        const apiResponse = await fetch('https://social-download-all-in-one.p.rapidapi.com/v1/social/autolink', {
-          method: 'POST',
-          headers: {
-            'x-rapidapi-key': RAPIDAPI_KEY,
-            'x-rapidapi-host': API_HOST,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ url })
-        });
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/webhook')) {
+        const update = await request.json();
+        const chatId = update.message.chat.id;
+        const command = update.message.text;
         
-        const data = await apiResponse.json();
-        
-        if (data.result && data.result.video) {
-          // Send video
-          await sendTelegramMessage({
-            chat_id: chatId,
-            video: data.result.video,
-            supports_streaming: true
-          }, 'sendVideo');
-          
-        } else if (data.result && data.result.images) {
-          // Send first photo
-          await sendTelegramMessage({
-            chat_id: chatId,
-            photo: data.result.images[0]
-          }, 'sendPhoto');
-          
+        if (command === '/start') {
+            await handleStart(chatId);
+        } else if (command === '/help') {
+            await handleHelp(chatId);
+        } else if (command === '/about') {
+            await handleAbout(chatId);
+        } else if (command === '/ping') {
+            await handlePing(chatId);
         } else {
-          await sendTextMessage(chatId, 'No media found in response');
+            await sendMessage(chatId, "Unknown command. Type /help for assistance.");
         }
-        
-      } catch (error) {
-        await sendTextMessage(chatId, `Error: ${error.message}`);
-      }
+        return new Response('OK', { status: 200 });
     }
-    return new Response('OK');
-  }
-  return new Response('Not Found', { status: 404 });
+    return new Response('Invalid request', { status: 404 });
 }
 
-async function sendTelegramMessage(params, method) {
-  const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/${method}`;
-  return fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params)
-  });
+async function handleStart(chatId) {
+    const message = "Welcome to the bot! Choose an option:";
+    const options = {
+        reply_markup: {
+            keyboard: [
+                ["🔊 Updates", "♻️ Support"],
+                ["❤️‍🩹 About", "🛠️ Help"],
+                ["👨‍💻 Developer code"]
+            ],
+            one_time_keyboard: true
+        }
+    };
+    await sendMessage(chatId, message, options);
 }
 
-async function sendTextMessage(chatId, text) {
-  return sendTelegramMessage({
-    chat_id: chatId,
-    text: text
-  }, 'sendMessage');
+async function handleHelp(chatId) {
+    const helpMessage = "Here are the commands you can use:\n- /start: Start the bot\n- /ping: Check the bot's uptime";
+    await sendMessage(chatId, helpMessage);
 }
 
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request));
-});
+async function handleAbout(chatId) {
+    const aboutMessage = `╔════❰ ❱═❍ ║
+    ╭━━━━━━━━━━━━━━━➣
+    ║┣⪼🤖 ᴍʏ ɴᴀᴍᴇ : YourBotName
+    ║┣⪼👦 ᴅᴇᴠᴇʟᴏᴘᴇʀ: YourName
+    ║┣⪼❣️ ᴜᴘᴅᴀᴛᴇ : Latest Update Info
+    ║┣⪼🗣️ ʟᴀɴɢᴜᴀɢᴇ : JS 💻
+    ║┣⪼🧠 ʜᴏsᴛᴇᴅ : ᴄʟᴏᴜᴅғʟᴀʀᴇ⚡
+    ║┣⪼📚 ᴜᴘᴅᴀᴛᴇᴅ : Last Updated Date
+    ║┣⪼🗒️ ᴠᴇʀsɪᴏɴ : v1.0
+    ║╰━━━━━━━━━━━━━━━➣
+    ╚══════════════════❍`;
+    await sendMessage(chatId, aboutMessage);
+}
+
+async function handlePing(chatId) {
+    const uptime = process.uptime(); // Adjust this line if you're using a different method to track uptime
+    const pingMessage = `❖ ᴜᴘᴛɪᴍᴇ ➥ ${uptime.toFixed(2)} ms`;
+    await sendMessage(chatId, pingMessage);
+}
+
+async function sendMessage(chatId, text, options = {}) {
+    const token = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; // Replace with your bot token
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            chat_id: chatId,
+            text: text,
+            ...options
+        })
+    });
+    return response.json();
+}
+ 
