@@ -3,70 +3,109 @@ addEventListener('fetch', event => {
 })
 
 async function handleRequest(request) {
-  try {
-    const url = new URL(request.url)
-    const fbUrl = url.searchParams.get('url')
+  const url = new URL(request.url)
+  const params = url.searchParams
 
-    if (!fbUrl) {
-      return new Response(JSON.stringify({ error: 'Missing URL parameter' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
+  // Get parameters from URL query string
+  const binInput = params.get('bin') || ''
+  const expInput = params.get('exp') || ''
+  const numCards = parseInt(params.get('num')) || 1
 
-    if (!isValidFacebookUrl(fbUrl)) {
-      return new Response(JSON.stringify({ error: 'Invalid Facebook URL' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
+  // Generate banner
+  let response = printColoredBanner()
+  
+  // Generate BIN
+  const binNumber = validateBIN(binInput)
 
-    const response = await fetch(fbUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-      }
-    })
+  // Generate expiration date
+  const [mm, yy] = generateExpDate(expInput)
 
-    const html = await response.text()
-    const videoData = extractVideoData(html)
-
-    return new Response(JSON.stringify(videoData), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    })
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+  // Generate cards
+  response += '\nGenerated Cards:\n'
+  response += '-----------------------------\n'
+  
+  for (let i = 0; i < numCards; i++) {
+    const card = generateCard(binNumber)
+    const cvv = generateCVV()
+    response += `\x1b[32m${card}|${mm}|${yy}|${cvv}\x1b[0m\n`
   }
+
+  response += '-----------------------------\n'
+
+  return new Response(response, {
+    headers: { 'Content-Type': 'text/plain' }
+  })
 }
 
-function isValidFacebookUrl(url) {
-  const facebookDomains = [
-    'facebook.com',
-    'www.facebook.com',
-    'm.facebook.com',
-    'fb.watch',
-    'web.facebook.com'
+function luhnChecksum(cardNumber) {
+  let total = 0
+  const reversedDigits = cardNumber.split('').reverse()
+  
+  reversedDigits.forEach((digit, i) => {
+    let n = parseInt(digit)
+    if (i % 2 === 1) {
+      n *= 2
+      if (n > 9) n = Math.floor(n / 10) + (n % 10)
+    }
+    total += n
+  })
+  
+  return (10 - (total % 10)) % 10
+}
+
+function generateExpDate(input) {
+  if (input) {
+    const [mm, yy] = input.split('/')
+    if (mm && yy && mm.length === 2 && yy.length === 2 && mm >= 1 && mm <= 12) {
+      return [mm.padStart(2, '0'), yy]
+    }
+  }
+  
+  const mm = `${Math.floor(Math.random() * 12) + 1}`.padStart(2, '0')
+  const currentYear = new Date().getFullYear()
+  const yy = `${(currentYear + Math.floor(Math.random() * 6)) % 100}`.padStart(2, '0')
+  return [mm, yy]
+}
+
+function printColoredBanner() {
+  const colors = [
+    '\x1b[38;2;255;0;0m',   // Red
+    '\x1b[38;2;0;255;0m',   // Green
+    '\x1b[38;2;0;0;255m',   // Blue
+    '\x1b[38;2;255;255;0m', // Yellow
+    '\x1b[38;2;255;0;255m', // Magenta
+    '\x1b[38;2;0;255;255m', // Cyan
+    '\x1b[38;2;255;165;0m', // Orange
   ]
-  return facebookDomains.some(domain => url.includes(domain))
+  
+  const banner = [
+    '  _____   _____   _____  ______  _   _   _____ ',
+    ' / ____| / ____| / ____||  ____|| \\ | | / ____|',
+    '| |     | |     | |  __ | |__   |  \\| || (___  ',
+    '| |     | |     | | |_ ||  __|  | . ` | \\___ \\ ',
+    '| |____ | |____ | |__| || |____ | |\\  | ____) |',
+    ' \\_____| \\_____| \\_____||______||_| \\_||_____/ ',
+    '                     Telegram:- @LEAKHUNTERV2                          '
+  ]
+
+  return banner.map(line => {
+    const color = colors[Math.floor(Math.random() * colors.length)]
+    return `${color}${line}\x1b[0m`
+  }).join('\n')
 }
 
-function extractVideoData(html) {
-  const sdRegex = /sd_src:"([^"]+)"/g
-  const hdRegex = /hd_src:"([^"]+)"/g
-  const titleRegex = /<title[^>]*>([^<]+)<\/title>/g
+function validateBIN(binInput) {
+  if (binInput.length === 6 && /^\d+$/.test(binInput)) return binInput
+  return Array.from({length: 6}, () => Math.floor(Math.random() * 10)).join('')
+}
 
-  const sdMatch = sdRegex.exec(html)
-  const hdMatch = hdRegex.exec(html)
-  const titleMatch = titleRegex.exec(html)
+function generateCard(bin) {
+  const middle = Array.from({length: 9}, () => Math.floor(Math.random() * 10)).join('')
+  const partial = bin + middle
+  const checksum = luhnChecksum(partial)
+  return partial + checksum
+}
 
-  return {
-    title: titleMatch ? titleMatch[1].replace(' | Facebook', '') : 'Untitled',
-    sd_url: sdMatch ? sdMatch[1] : null,
-    hd_url: hdMatch ? hdMatch[1] : null
-  }
+function generateCVV() {
+  return `${Math.floor(Math.random() * 1000)}`.padStart(3, '0')
 }
