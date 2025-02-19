@@ -1,95 +1,85 @@
-// cloudflare-worker.js
+import { Bot, InlineKeyboard, Keyboard } from "grammy";
+import { MongoDBAdapter } from "@grammyjs/storage-mongodb";
+import { MongoClient } from "mongodb";
 
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
+// Initialize MongoDB connection
+const client = new MongoClient(environment.DATABASE_URL);
+const db = client.db();
+const users = db.collection("users");
 
-function luhnChecksum(cardNumber) {
-  let total = 0
-  const reversedDigits = cardNumber.split('').reverse()
-  for (let i = 0; i < reversedDigits.length; i++) {
-    let n = parseInt(reversedDigits[i], 10)
-    if (i % 2 === 1) {
-      n *= 2
-      if (n > 9) n = Math.floor(n / 10) + (n % 10)
-    }
-    total += n
+// Create bot instance
+const bot = new Bot(environment.TELEGRAM_BOT_TOKEN);
+
+// Handle /start command
+bot.command("start", async (ctx) => {
+  const buttons = new InlineKeyboard()
+    .url("👨‍💻 Developer", "tg://openmessage?user_id=6449612223")
+    .row()
+    .url("🔊 Updates", "https://t.me/addlist/P9nJIi98NfY3OGNk")
+    .row()
+    .text("✅", "/join");
+
+  await ctx.replyWithPhoto("https://t.me/kajal_developer/9", {
+    caption: "⭐️ To Usᴇ Tʜɪs Bᴏᴛ Yᴏᴜ Nᴇᴇᴅ Tᴏ Jᴏɪɴ Aʟʟ Cʜᴀɴɴᴇʟs -",
+    reply_markup: buttons,
+    parse_mode: "Markdown",
+  });
+});
+
+// Handle /join callback
+bot.callbackQuery("/join", async (ctx) => {
+  await ctx.deleteMessage();
+  const userId = ctx.from.id;
+  
+  // Check if user is banned
+  const user = await users.findOne({ _id: userId });
+  if (user?.status === "ban") {
+    return ctx.reply("You're Ban From Using The Bot ❌");
   }
-  return ((10 - (total % 10)) % 10).toString()
-}
 
-function generateExpDate() {
-  const mm = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')
-  const currentYear = new Date().getFullYear()
-  const yy = String((currentYear + Math.floor(Math.random() * 6)) % 100).padStart(2, '0')
-  return { mm, yy }
-}
+  // Check channel membership
+  const member = await ctx.api.getChatMember("@kajal_developer", userId);
+  if (["member", "administrator", "creator"].includes(member.status)) {
+    await users.updateOne(
+      { _id: userId },
+      { $set: { group: "user" } },
+      { upsert: true }
+    );
+    return ctx.reply("🤗 Welcome to Lx Bot 🌺", {
+      reply_markup: new Keyboard()
+        .text("🌺 CP").text("🇮🇳 Desi").row()
+        .text("🇬🇧 Forener").text("🐕‍🦺 Animal").row()
+        .text("💕 Webseries").text("💑 Gay Cp").row()
+        .text("💸 𝘽𝙐𝙔 𝙑𝙄𝙋 💸")
+        .resized()
+    });
+  }
+
+  return ctx.reply("❌ Must join all channel\n@kajal_developer");
+});
+
+// Handle ban check middleware
+bot.use(async (ctx, next) => {
+  const user = await users.findOne({ _id: ctx.from.id });
+  if (user?.status === "ban") {
+    return ctx.reply("You're Ban From Using The Bot ❌");
+  }
+  return next();
+});
+
+// Handle other commands
+bot.command("vmenu", (ctx) => ctx.reply("Main menu text..."));
+
+// Start the bot
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event.request));
+});
 
 async function handleRequest(request) {
-  const url = new URL(request.url)
-  const params = url.searchParams
-  const reset = '\x1b[0m'
-  
-  // Generate banner
-  const colors = [
-    '\x1b[38;2;255;0;0m',   // Red
-    '\x1b[38;2;0;255;0m',   // Green
-    '\x1b[38;2;0;0;255m',   // Blue
-    '\x1b[38;2;255;255;0m', // Yellow
-    '\x1b[38;2;255;0;255m', // Magenta
-    '\x1b[38;2;0;255;255m', // Cyan
-    '\x1b[38;2;255;165;0m', // Orange
-  ]
-  
-  let banner = ''
-  const bannerLines = [
-    "  _____   _____   _____  ______  _   _   _____ ",
-    " / ____| / ____| / ____||  ____|| \\ | | / ____|",
-    "| |     | |     | |  __ | |__   |  \\| || (___  ",
-    "| |     | |     | | |_ ||  __|  | . ` | \\___ \\ ",
-    "| |____ | |____ | |__| || |____ | |\\  | ____) |",
-    " \\_____| \\_____| \\_____||______||_| \\_||_____/ ",
-    "                     Telegram:- @LEAKHUNTERV2                          "
-  ]
-  
-  bannerLines.forEach(line => {
-    banner += colors[Math.floor(Math.random() * colors.length)] + line + reset + '\n'
-  })
-
-  // Process parameters
-  let bin = params.get('bin') || Array.from({length:6}, () => Math.floor(Math.random()*10)).join('')
-  if (!/^\d{6}$/.test(bin)) bin = Array.from({length:6}, () => Math.floor(Math.random()*10)).join('')
-
-  let { mm, yy } = generateExpDate()
-  if (params.get('mm') && params.get('yy')) {
-    const reqMM = params.get('mm').padStart(2, '0')
-    const reqYY = params.get('yy').padStart(2, '0')
-    if (/^\d{2}$/.test(reqMM) && parseInt(reqMM) >= 1 && parseInt(reqMM) <= 12) {
-      mm = reqMM
-      yy = reqYY
-    }
+  if (request.method === "POST") {
+    const update = await request.json();
+    await bot.handleUpdate(update);
+    return new Response("OK");
   }
-
-  const numCards = Math.min(parseInt(params.get('num')) || 1, 100)
-  const cards = []
-  const green = '\x1b[38;2;0;255;0m'
-
-  for (let i = 0; i < numCards; i++) {
-    const middle = Array.from({length:9}, () => Math.floor(Math.random()*10)).join('')
-    const partial = bin + middle
-    const checksum = luhnChecksum(partial)
-    const cvv = Array.from({length:3}, () => Math.floor(Math.random()*10)).join('')
-    cards.push(`${green}${partial}${checksum}|${mm}|${yy}|${cvv}${reset}`)
-  }
-
-  const responseText = `${banner}
-Generated Cards:
------------------------------
-${cards.join('\n')}
------------------------------
-`
-
-  return new Response(responseText, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-  })
+  return new Response("Method not allowed", { status: 405 });
 }
