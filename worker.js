@@ -91,4 +91,4 @@ async function handleDownload(request) {
       'Content-Disposition': 'attachment; filename="facebook_video.mp4"'
     }
   })
-}
+)
