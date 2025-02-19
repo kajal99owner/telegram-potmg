@@ -1,120 +1,94 @@
-const BOT_TOKEN = "7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM";
-
+// cloudflare-worker.js
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
 
 async function handleRequest(request) {
-  if (request.method === 'POST') {
-    const body = await request.json()
-    const message = body.message || body.callback_query
-    const chatId = message.chat.id
-    const text = message.text || message.data
+  try {
+    const url = new URL(request.url)
+    const fbUrl = url.searchParams.get('url')
 
-    if (text === '/start') {
-      return handleStartCommand(chatId)
-    } else if (text === '/join') {
-      return handleJoinCommand(chatId, message)
-    } else {
-      return new Response('OK', { status: 200 })
+    if (!fbUrl) {
+      return new Response(JSON.stringify({ error: 'Missing URL parameter' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
-  }
-  return new Response('OK', { status: 200 })
-}
 
-async function handleStartCommand(chatId) {
-  const buttons = [
-    [{ text: "👨‍💻 Developer", url: "tg://openmessage?user_id=6449612223" }],
-    [{ text: "🔊 Updates", url: "https://t.me/addlist/P9nJIi98NfY3OGNk" }],
-    [{ text: "✅", callback_data: "/join" }]
-  ]
+    if (!isValidFacebookUrl(fbUrl)) {
+      return new Response(JSON.stringify({ error: 'Invalid Facebook URL' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
 
-  const messageText = "⭐️ To Usᴇ Tʜɪs Bᴏᴛ Yᴏᴜ Nᴇᴇᴅ Tᴏ Jᴏɪɴ Aʟʟ Cʜᴀɴɴᴇʟs -"
-  const photoUrl = "https://t.me/kajal_developer/9"
-
-  const response = await fetch(`https://api.telegram.org/bot${YOUR_BOT_TOKEN}/sendPhoto`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      chat_id: chatId,
-      photo: photoUrl,
-      caption: messageText,
-      parse_mode: "Markdown",
-      disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: buttons
+    const response = await fetch(fbUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
     })
-  })
 
-  return new Response('OK', { status: 200 })
+    const html = await response.text()
+    const videoUrl = extractVideoUrl(html)
+
+    if (!videoUrl) {
+      return new Response(JSON.stringify({ error: 'Video not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    return new Response(JSON.stringify({
+      video_url: videoUrl,
+      download_url: `${url.origin}/download?url=${encodeURIComponent(videoUrl)}`
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  }
 }
 
-async function handleJoinCommand(chatId, message) {
-  const messageId = message.message_id
+function isValidFacebookUrl(url) {
+  return /^(https?:\/\/)?(www\.)?(facebook\.com|fb\.watch|fb.watch)\/.+/.test(url)
+}
 
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      chat_id: chatId,
-      message_id: messageId
-    })
-  })
+function extractVideoUrl(html) {
+  // Try different parsing methods
+  const metaTagMatch = html.match(/<meta property="og:video:url" content="(.*?)"/i)
+  if (metaTagMatch) return metaTagMatch[1]
 
-  const userId = message.from.id
-  const channel = "@kajal_developer"
+  const jsonDataMatch = html.match(/\["video","([^"]+\.mp4)/)
+  if (jsonDataMatch) return jsonDataMatch[1]
 
-  const chatMember = await fetch(`https://api.telegram.org/bot${YOUR_BOT_TOKEN}/getChatMember`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      chat_id: channel,
-      user_id: userId
-    })
-  })
+  const hdSrcMatch = html.match(/"hd_src":"(https?:\\\/\\\/[^"]+?)"/)
+  if (hdSrcMatch) return JSON.parse(`"${hdSrcMatch[1]}"`)
 
-  const chatMemberData = await chatMember.json()
-  const status = chatMemberData.result.status
+  return null
+}
 
-  if (status === "member" || status === "administrator" || status === "creator") {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: "🤗 Welcome to Lx Bot 🌺",
-        reply_markup: {
-          keyboard: [
-            ["🌺 CP", "🇮🇳 Desi"],
-            ["🇬🇧 Forener", "🐕‍🦺 Animal"],
-            ["💕 Webseries", "💑 Gay Cp"],
-            ["💸 𝘽𝙐𝙔 𝙑𝙄𝙋 💸"]
-          ],
-          resize_keyboard: true
-        }
-      })
-    })
-  } else {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: "❌ Must join all channel\n @kajal_developer"
-      })
-    })
+// Optional download proxy endpoint
+addEventListener('fetch', event => {
+  const url = new URL(event.request.url)
+  if (url.pathname === '/download') {
+    event.respondWith(handleDownload(event.request))
   }
+})
 
-  return new Response('OK', { status: 200 })
+async function handleDownload(request) {
+  const videoUrl = new URL(request.url).searchParams.get('url')
+  const response = await fetch(videoUrl)
+  return new Response(response.body, {
+    headers: {
+      'Content-Type': 'video/mp4',
+      'Content-Disposition': 'attachment; filename="facebook_video.mp4"'
+    }
+  })
 }
