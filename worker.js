@@ -1,135 +1,71 @@
-// cloudflare-worker.js
-const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
-const MAILTM_API = 'https://api.mail.tm';
+const BOT_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
 
-async function handleRequest(request, env) {
-    const url = new URL(request.url);
-    if (url.pathname === `/${TELEGRAM_TOKEN}` && request.method === 'POST') {
-        return handleTelegramUpdate(await request.json(), env);
+async function handleRequest(request) {
+    if (request.method === 'POST') {
+        try {
+            const update = await request.json();
+            const message = update.message || update.callback_query.message;
+            const chat_id = message.chat.id;
+            const user = message.from;
+
+            // Handle /start command
+            if (message.text && message.text.startsWith('/start')) {
+                // Delete the original /start message
+                await deleteMessage(chat_id, message.message_id);
+                
+                // Send welcome message with photo
+                return sendWelcomeMessage(chat_id, user);
+            }
+
+            return new Response('OK');
+
+        } catch (error) {
+            return new Response('Error processing request: ' + error.message, { status: 500 });
+        }
     }
-    return new Response('Not Found', { status: 404 });
+    return new Response('Method not allowed', { status: 405 });
 }
 
-async function handleTelegramUpdate(update, env) {
-    const chatId = update.message.chat.id;
-    const text = update.message.text;
-    
-    // Command router
-    if (text.startsWith('/start')) {
-        return sendMessage(chatId, `📧 Welcome to TempMail Bot!\n\nAvailable commands:\n/create - Generate new email\n/inbox - Check messages\n/read [id] - Read message\n/help - Show help`);
-    }
-    
-    if (text.startsWith('/create')) {
-        return createAccount(chatId, env);
-    }
-    
-    if (text.startsWith('/inbox')) {
-        return getInbox(chatId, env);
-    }
-    
-    if (text.startsWith('/read')) {
-        const messageId = text.split(' ')[1];
-        return getMessage(chatId, messageId, env);
-    }
-    
-    if (text.startsWith('/help')) {
-        return sendMessage(chatId, `🛠 Commands:\n\n/create - Create new temporary email\n/inbox - List recent messages\n/read [id] - Show message content\n/help - Show this help`);
-    }
-    
-    return sendMessage(chatId, '❌ Unknown command. Use /help for available commands');
-}
-
-// Mail.tm API Operations
-async function createAccount(chatId, env) {
-    try {
-        // Get available domains
-        const domains = await fetch(`${MAILTM_API}/domains`).then(r => r.json());
-        const domain = domains['hydra:member'][0].domain;
-        
-        // Generate credentials
-        const username = Math.random().toString(36).substring(2, 12) + domain;
-        const password = Math.random().toString(36).substring(2, 16);
-        
-        // Create account
-        const account = await fetch(`${MAILTM_API}/accounts`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ address: username, password })
-        });
-        
-        if (!account.ok) throw new Error('Account creation failed');
-        
-        // Get token
-        const token = await fetch(`${MAILTM_API}/token`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ address: username, password })
-        }).then(r => r.json());
-        
-        // Store in KV
-        await env.MAILTM_BOT_KV.put(chatId, JSON.stringify({
-            email: username,
-            password,
-            token: token.token
-        }));
-        
-        return sendMessage(chatId, `✅ New email created:\n📧 ${username}\n🔑 ${password}\n\nAccount will expire after 10 minutes of inactivity.`);
-    } catch (e) {
-        return sendMessage(chatId, `❌ Error creating account: ${e.message}`);
-    }
-}
-
-async function getInbox(chatId, env) {
-    try {
-        const userData = JSON.parse(await env.MAILTM_BOT_KV.get(chatId));
-        if (!userData) return sendMessage(chatId, '❌ No active session. Use /create first');
-        
-        const messages = await fetch(`${MAILTM_API}/messages`, {
-            headers: { Authorization: `Bearer ${userData.token}` }
-        }).then(r => r.json());
-        
-        let response = `📥 Inbox (${messages['hydra:totalItems']} messages):\n\n`;
-        messages['hydra:member'].forEach(msg => {
-            response += `🔸 ${msg.subject}\nFrom: ${msg.from.address}\nID: ${msg.id}\n\n`;
-        });
-        
-        return sendMessage(chatId, response || 'No messages found');
-    } catch (e) {
-        return sendMessage(chatId, `❌ Error fetching inbox: ${e.message}`);
-    }
-}
-
-async function getMessage(chatId, messageId, env) {
-    if (!messageId) return sendMessage(chatId, '❌ Please provide message ID (e.g., /read 123)');
-    
-    try {
-        const userData = JSON.parse(await env.MAILTM_BOT_KV.get(chatId));
-        if (!userData) return sendMessage(chatId, '❌ No active session');
-        
-        const message = await fetch(`${MAILTM_API}/messages/${messageId}`, {
-            headers: { Authorization: `Bearer ${userData.token}` }
-        }).then(r => r.json());
-        
-        const response = `📨 Message:\n\nSubject: ${message.subject}\nFrom: ${message.from.address}\n\n${message.text}`;
-        return sendMessage(chatId, response.slice(0, 4096)); // Telegram message limit
-    } catch (e) {
-        return sendMessage(chatId, `❌ Error fetching message: ${e.message}`);
-    }
-}
-
-// Telegram API Helper
-async function sendMessage(chatId, text) {
-    return fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+async function deleteMessage(chat_id, message_id) {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage`;
+    await fetch(url, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            chat_id: chatId,
-            text,
-            parse_mode: 'Markdown'
+            chat_id: chat_id,
+            message_id: message_id
         })
     });
 }
 
-export default {
-    fetch: handleRequest
-};
+async function sendWelcomeMessage(chat_id, user) {
+    const photoUrl = "https://t.me/kajal_developer/59";
+    const buttons = [
+        [
+            { text: "『MENU』", callback_data: "/2" }
+        ],
+        [
+            { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" },
+            { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" }
+        ]
+    ];
+
+    const caption = `<b>👋 Welcome ${user.first_name}</b>\n\n⛔ ᴍᴜꜱᴛ ᴊᴏɪɴ ᴏᴜʀ ᴀʟʟ ᴄʜᴀɴɴᴇʟꜱ`;
+
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chat_id,
+            photo: photoUrl,
+            caption: caption,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buttons }
+        })
+    });
+}
+
+addEventListener('fetch', event => {
+    event.respondWith(handleRequest(event.request));
+});
