@@ -1,85 +1,52 @@
-import { Bot, InlineKeyboard, Keyboard } from "grammy";
-import { MongoDBAdapter } from "@grammyjs/storage-mongodb";
-import { MongoClient } from "mongodb";
+// Import the deepseek-chat library (assuming it's available as an ES module)
+import { DeepSeekChat } from 'deepseek-chat';
 
-// Initialize MongoDB connection
-const client = new MongoClient(environment.DATABASE_URL);
-const db = client.db();
-const users = db.collection("users");
+// Initialize the Telegram bot token
+const TELEGRAM_BOT_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
+const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
-// Create bot instance
-const bot = new Bot(environment.TELEGRAM_BOT_TOKEN);
+// Initialize DeepSeekChat
+const deepseek = new DeepSeekChat();
 
-// Handle /start command
-bot.command("start", async (ctx) => {
-  const buttons = new InlineKeyboard()
-    .url("👨‍💻 Developer", "tg://openmessage?user_id=6449612223")
-    .row()
-    .url("🔊 Updates", "https://t.me/addlist/P9nJIi98NfY3OGNk")
-    .row()
-    .text("✅", "/join");
-
-  await ctx.replyWithPhoto("https://t.me/kajal_developer/9", {
-    caption: "⭐️ To Usᴇ Tʜɪs Bᴏᴛ Yᴏᴜ Nᴇᴇᴅ Tᴏ Jᴏɪɴ Aʟʟ Cʜᴀɴɴᴇʟs -",
-    reply_markup: buttons,
-    parse_mode: "Markdown",
-  });
-});
-
-// Handle /join callback
-bot.callbackQuery("/join", async (ctx) => {
-  await ctx.deleteMessage();
-  const userId = ctx.from.id;
-  
-  // Check if user is banned
-  const user = await users.findOne({ _id: userId });
-  if (user?.status === "ban") {
-    return ctx.reply("You're Ban From Using The Bot ❌");
-  }
-
-  // Check channel membership
-  const member = await ctx.api.getChatMember("@kajal_developer", userId);
-  if (["member", "administrator", "creator"].includes(member.status)) {
-    await users.updateOne(
-      { _id: userId },
-      { $set: { group: "user" } },
-      { upsert: true }
-    );
-    return ctx.reply("🤗 Welcome to Lx Bot 🌺", {
-      reply_markup: new Keyboard()
-        .text("🌺 CP").text("🇮🇳 Desi").row()
-        .text("🇬🇧 Forener").text("🐕‍🦺 Animal").row()
-        .text("💕 Webseries").text("💑 Gay Cp").row()
-        .text("💸 𝘽𝙐𝙔 𝙑𝙄𝙋 💸")
-        .resized()
-    });
-  }
-
-  return ctx.reply("❌ Must join all channel\n@kajal_developer");
-});
-
-// Handle ban check middleware
-bot.use(async (ctx, next) => {
-  const user = await users.findOne({ _id: ctx.from.id });
-  if (user?.status === "ban") {
-    return ctx.reply("You're Ban From Using The Bot ❌");
-  }
-  return next();
-});
-
-// Handle other commands
-bot.command("vmenu", (ctx) => ctx.reply("Main menu text..."));
-
-// Start the bot
-addEventListener("fetch", (event) => {
+// Handle incoming requests
+addEventListener('fetch', (event) => {
   event.respondWith(handleRequest(event.request));
 });
 
 async function handleRequest(request) {
-  if (request.method === "POST") {
+  if (request.method === 'POST') {
     const update = await request.json();
-    await bot.handleUpdate(update);
-    return new Response("OK");
+    await handleTelegramUpdate(update);
+    return new Response('OK', { status: 200 });
   }
-  return new Response("Method not allowed", { status: 405 });
+  return new Response('Not Found', { status: 404 });
+}
+
+// Handle Telegram updates
+async function handleTelegramUpdate(update) {
+  const chatId = update.message.chat.id;
+  const text = update.message.text;
+
+  // Use DeepSeekChat to generate a response
+  const response = await deepseek.generateResponse(text);
+
+  // Send the response back to Telegram
+  await sendMessage(chatId, response);
+}
+
+// Send a message to Telegram
+async function sendMessage(chatId, text) {
+  const url = `${TELEGRAM_API_URL}/sendMessage`;
+  const body = {
+    chat_id: chatId,
+    text: text,
+  };
+
+  await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }
