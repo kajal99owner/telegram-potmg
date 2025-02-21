@@ -1,17 +1,16 @@
 // cloudflare-worker.js
 const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
 const MAILTM_API = 'https://api.mail.tm';
-const KV_NAMESPACE = 'mailtm_bot_kv'; // Create in Cloudflare KV
 
-async function handleRequest(request) {
+async function handleRequest(request, env) {
     const url = new URL(request.url);
     if (url.pathname === `/${TELEGRAM_TOKEN}` && request.method === 'POST') {
-        return handleTelegramUpdate(await request.json());
+        return handleTelegramUpdate(await request.json(), env);
     }
     return new Response('Not Found', { status: 404 });
 }
 
-async function handleTelegramUpdate(update) {
+async function handleTelegramUpdate(update, env) {
     const chatId = update.message.chat.id;
     const text = update.message.text;
     
@@ -21,16 +20,16 @@ async function handleTelegramUpdate(update) {
     }
     
     if (text.startsWith('/create')) {
-        return createAccount(chatId);
+        return createAccount(chatId, env);
     }
     
     if (text.startsWith('/inbox')) {
-        return getInbox(chatId);
+        return getInbox(chatId, env);
     }
     
     if (text.startsWith('/read')) {
         const messageId = text.split(' ')[1];
-        return getMessage(chatId, messageId);
+        return getMessage(chatId, messageId, env);
     }
     
     if (text.startsWith('/help')) {
@@ -41,7 +40,7 @@ async function handleTelegramUpdate(update) {
 }
 
 // Mail.tm API Operations
-async function createAccount(chatId) {
+async function createAccount(chatId, env) {
     try {
         // Get available domains
         const domains = await fetch(`${MAILTM_API}/domains`).then(r => r.json());
@@ -68,7 +67,7 @@ async function createAccount(chatId) {
         }).then(r => r.json());
         
         // Store in KV
-        await KV_NAMESPACE.put(chatId, JSON.stringify({
+        await env.MAILTM_BOT_KV.put(chatId, JSON.stringify({
             email: username,
             password,
             token: token.token
@@ -80,9 +79,9 @@ async function createAccount(chatId) {
     }
 }
 
-async function getInbox(chatId) {
+async function getInbox(chatId, env) {
     try {
-        const userData = JSON.parse(await KV_NAMESPACE.get(chatId));
+        const userData = JSON.parse(await env.MAILTM_BOT_KV.get(chatId));
         if (!userData) return sendMessage(chatId, '❌ No active session. Use /create first');
         
         const messages = await fetch(`${MAILTM_API}/messages`, {
@@ -100,11 +99,11 @@ async function getInbox(chatId) {
     }
 }
 
-async function getMessage(chatId, messageId) {
+async function getMessage(chatId, messageId, env) {
     if (!messageId) return sendMessage(chatId, '❌ Please provide message ID (e.g., /read 123)');
     
     try {
-        const userData = JSON.parse(await KV_NAMESPACE.get(chatId));
+        const userData = JSON.parse(await env.MAILTM_BOT_KV.get(chatId));
         if (!userData) return sendMessage(chatId, '❌ No active session');
         
         const message = await fetch(`${MAILTM_API}/messages/${messageId}`, {
@@ -131,10 +130,6 @@ async function sendMessage(chatId, text) {
     });
 }
 
-// Cloudflare Worker setup
 export default {
-    async fetch(request, env) {
-        KV_NAMESPACE = env.MAILTM_BOT_KV; // Bind KV namespace
-        return handleRequest(request);
-    }
+    fetch: handleRequest
 };
