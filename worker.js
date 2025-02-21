@@ -52,7 +52,7 @@ async function handleCommand(update) {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     chat_id: chatId,
-                    text: "Pinging...."
+                    text: "🔄 Pinging...."
                 })
             });
             
@@ -60,8 +60,31 @@ async function handleCommand(update) {
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // Edit message with latency
+            const uptime = process.uptime();
+            const ramUsage = process.ramUsage();
+            const cpuUsage = process.cpuUsage();
+            const diskUsage = process.diskUsage();
+
+            // Format time
+            const formatUptime = (seconds) => {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${hours}h:${minutes}m:${secs}s`;
+            };
+
+            // Build status message
             const photoUrl = "https://t.me/kajal_developer/59";
+            const caption = `
+<b>🏓 ᴩᴏɴɢ : ${latency}ᴍs</b>
+
+↬ ᴜᴩᴛɪᴍᴇ : ${formatUptime(uptime)}
+↬ ʀᴀᴍ : ${ramUsage}%
+↬ ᴄᴩᴜ : ${cpuUsage}%
+↬ ᴅɪsᴋ : ${diskUsage}%
+            `.trim();
+
+            // Edit message with status
             await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageMedia`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -71,7 +94,7 @@ async function handleCommand(update) {
                     media: {
                         type: "photo",
                         media: photoUrl,
-                        caption: `❖ ᴜᴘᴛɪᴍᴇ ➥ ${latency} ms`,
+                        caption: caption,
                         parse_mode: "HTML"
                     }
                 })
