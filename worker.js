@@ -1,115 +1,187 @@
-const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
-const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+
+const TXT = {
+  START_TXT: `Hello {} 👋 
+
+➻ 
+
+
+<b>Bot Is Made By :</b> @Madflix_Bots`,
+
+  ABOUT_TXT: `
+╭───────────────⍟
+├<b>🤖 My Name</b> : {}
+├<b>🖥️ Developer</b> : <a href="https://t.me/Madflix_Bots">Madflix Botz</a> 
+├<b>👨‍💻 Programer</b> : <a href="https://t.me/MadflixOfficials">Jishu Developer</a>
+├<b>📕 Library</b> : <a href="</a>
+├<b>✏️ Language</b> : <a href="></a>
+├<b>📊 Build Version</b> : <a href="">v1.0.0</a></b>     
+╰───────────────⍟`,
+
+  HELP_TXT: "Your help text here",
+  DONATE_TXT: "Your donate text here"
+};
 
 async function handleRequest(request) {
-    try {
-        const update = await request.json();
-        const message = update.message || update.channel_post;
-        if (!message) return new Response('OK');
-
-        const chatId = message.chat.id;
-        const text = message.text || '';
-        const userId = message.from.id;
-        const username = message.from.username || '';
-        const messageId = message.message_id;
-
-        // Bin lookup command
-        if (/^(\/|!|\.)bin/.test(text)) {
-            const bin = text.split(' ')[1]?.substr(0, 6);
-            if (!bin) return new Response('OK');
-            
-            const response = await fetch(`https://lookup.binlist.net/${bin}`, {
-                headers: {
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36'
-                }
-            });
-            
-            if (!response.ok) {
-                await sendMessage(chatId, `<b>Lookup Failed ❌\n\nBin: ${bin}</b>`, messageId);
-                return new Response('OK');
-            }
-            
-            const data = await response.json();
-            const messageText = `<b>Lookup Success ✅\n\nBin: ${bin}\n\nInfo: ${data.scheme || 'N/A'} - ${data.type || 'N/A'} - ${data.brand || 'N/A'}\nBank: ${data.bank?.name || 'N/A'}\nCountry: ${data.country?.name || 'N/A'} ${data.country?.emoji || ''}</b>`;
-            await sendMessage(chatId, messageText, messageId);
-        }
-
-        // IP lookup command
-        if (/^(\/|!|\.)ip/.test(text)) {
-            const ip = text.split(' ')[1];
-            if (!ip) return new Response('OK');
-            
-            const startTime = Date.now();
-            const initialMessage = await sendMessage(chatId, `<b>Checking IP: ${ip}...</b>`, messageId);
-            const messageIdToEdit = initialMessage.result.message_id;
-            
-            const response = await fetch(`https://scamalytics.com/ip/${ip}`);
-            const html = await response.text();
-            
-            const getValue = (start, end) => {
-                const regex = new RegExp(`${start}(.*?)${end}`);
-                const match = html.match(regex);
-                return match ? match[1].trim() : 'N/A';
-            };
-            
-            const details = {
-                risk: getValue('<div style="padding: 10px; background-color: #F0F0F0">', '</div>'),
-                isp: getValue('<th>ISP Name</th>', '</tr>'),
-                asn: getValue('<th>ASN</th>', '</tr>'),
-                country: getValue('<th>Country Name</th>', '</tr>'),
-                countryCode: getValue('<th>Country Code</th>', '</tr>'),
-                region: getValue('<th>Region</th>', '</tr>'),
-                city: getValue('<th>City</th>', '</tr>'),
-                postal: getValue('<th>Postal Code</th>', '</tr>')
-            };
-            
-            const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
-            const responseText = `<b>IP Check Results:\n\nIP: ${ip}\nRisk: ${details.risk}\nISP: ${details.isp}\nASN: ${details.asn}\nCountry: ${details.country} (${details.countryCode})\nRegion: ${details.region}\nCity: ${details.city}\nPostal: ${details.postal}\n\nTime Taken: ${executionTime}s</b>`;
-            
-            await editMessage(chatId, messageIdToEdit, responseText);
-        }
-
-        // Card generation command
-if (/^(\/|!|\.)gen/.test(text)) {
-    const generateCard = () => {
-        const prefixes = ['4', '5', '34', '37'];
-        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-        let card = prefix;
-        
-        while (card.length < 16) {
-            card += Math.floor(Math.random() * 10);
-        }
-        
-        const mm = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-        const yy = String(new Date().getFullYear() % 100 + Math.floor(Math.random() * 5) + 1);
-        const cvv = String(Math.floor(Math.random() * 900) + 100);
-        
-        return `${card}|${mm}|${yy}|${cvv}`;
-    };
+  try {
+    const update = await request.json();
     
-    const cards = Array.from({length: 5}, generateCard).join('\n');
-    await sendMessage(chatId, `<b>Generated Cards:\n<code>${cards}</code></b>`, messageId);
-}
-
-    } catch (error) {
-        console.error('Error:', error);
+    if (update.message) {
+      await handleMessage(update.message);
     }
+    else if (update.callback_query) {
+      await handleCallbackQuery(update.callback_query);
+    }
+    
     return new Response('OK');
+  } catch (error) {
+    return new Response(error.stack, { status: 200 });
+  }
 }
 
-async function sendMessage(chatId, text, replyId) {
-    const url = `${BASE_URL}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(text)}&parse_mode=HTML&reply_to_message_id=${replyId}`;
-    return fetch(url).then(r => r.json());
+async function handleMessage(message) {
+  const chatId = message.chat.id;
+  const text = message.text || '';
+  
+  if (text.startsWith('/start')) {
+    await sendStartMessage(chatId, message.from);
+  }
+  else if (text.startsWith('/donate') || text.startsWith('/d')) {
+    await sendDonateMessage(chatId);
+  }
 }
 
-async function editMessage(chatId, messageId, text) {
-    const url = `${BASE_URL}/editMessageText?chat_id=${chatId}&message_id=${messageId}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
-    return fetch(url);
+async function sendStartMessage(chatId, user) {
+  const buttons = {
+    inline_keyboard: [
+      [
+        { text: '🔊 Updates', url: 'https://t.me/Madflix_Bots' },
+        { text: '♻️ Sᴜᴩᴩᴏʀᴛ', url: 'https://t.me/MadflixBots_Support' }
+      ],
+      [
+        { text: '❤️‍🩹 About', callback_data: 'about' },
+        { text: '🛠️ Help', callback_data: 'help' }
+      ],
+      [
+        { text: '👨‍💻 Developer', url: 'https://t.me/CallAdminRobot' }
+      ]
+    ]
+  };
+
+  const formattedText = TXT.START_TXT.replace('{}', user.first_name);
+
+  if (START_PIC) {
+    await sendPhoto(chatId, START_PIC, formattedText, buttons);
+  } else {
+    await sendMessage(chatId, formattedText, buttons);
+  }
+}
+
+async function handleCallbackQuery(query) {
+  const message = query.message;
+  const data = query.data;
+  
+  if (data === 'start') {
+    await editMessage(message, TXT.START_TXT.replace('{}', query.from.first_name), getStartButtons());
+  }
+  else if (data === 'help') {
+    await editMessage(message, TXT.HELP_TXT, {
+      inline_keyboard: [
+        [{ text: '⚡ 4GB Rename Bot', url: 'https://t.me/FileRenameXProBot' }],
+        [
+          { text: '🔒 Close', callback_data: 'close' },
+          { text: '◀️ Back', callback_data: 'start' }
+        ]
+      ]
+    });
+  }
+  else if (data === 'about') {
+    await editMessage(message, TXT.ABOUT_TXT.replace('{}', BOT_NAME), {
+      inline_keyboard: [
+        [{ text: '🤖 More Bots', url: 'https://t.me/Madflix_Bots/7' }],
+        [
+          { text: '🔒 Cʟᴏꜱᴇ', callback_data: 'close' },
+          { text: '◀️ Bᴀᴄᴋ', callback_data: 'start' }
+        ]
+      ]
+    });
+  }
+  else if (data === 'close') {
+    await deleteMessage(message.chat.id, message.message_id);
+  }
+}
+
+async function sendDonateMessage(chatId) {
+  const buttons = {
+    inline_keyboard: [
+      [
+        { text: '🦋 Admin', url: 'https://t.me/CallAdminRobot' },
+        { text: '✖️ Close', callback_data: 'close' }
+      ]
+    ]
+  };
+  
+  await sendMessage(chatId, TXT.DONATE_TXT, buttons);
+}
+
+// Helper functions
+async function sendMessage(chatId, text, replyMarkup) {
+  const payload = {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+    reply_markup: replyMarkup
+  };
+
+  await fetch(`${TELEGRAM_API}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+async function sendPhoto(chatId, photo, caption, replyMarkup) {
+  const payload = {
+    chat_id: chatId,
+    photo: photo,
+    caption: caption,
+    parse_mode: 'HTML',
+    reply_markup: replyMarkup
+  };
+
+  await fetch(`${TELEGRAM_API}/sendPhoto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+async function editMessage(message, text, replyMarkup) {
+  const payload = {
+    chat_id: message.chat.id,
+    message_id: message.message_id,
+    text: text,
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+    reply_markup: replyMarkup
+  };
+
+  await fetch(`${TELEGRAM_API}/editMessageText`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+async function deleteMessage(chatId, messageId) {
+  await fetch(`${TELEGRAM_API}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`);
 }
 
 export default {
-    async fetch(request, env) {
-        return handleRequest(request);
-    }
+  async fetch(request, env) {
+    BOT_TOKEN = env.BOT_TOKEN;
+    START_PIC = env.START_PIC;
+    return handleRequest(request);
+  }
 };
