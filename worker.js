@@ -1,4 +1,4 @@
-async function handleCommand(update, env) { // Added env as parameter
+async function handleCommand(update, TELEGRAM_TOKEN) {
     const chatId = update.message.chat.id;
     const messageId = update.message.message_id;
     const command = update.message.text.split(' ')[0];
@@ -7,7 +7,7 @@ async function handleCommand(update, env) { // Added env as parameter
     try {
         if (command === '/start') {
             // Delete the original /start message
-            await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/deleteMessage`, { // Use env variable
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -24,12 +24,12 @@ async function handleCommand(update, env) { // Added env as parameter
                 ],
                 [
                     { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" },
-                    { text: "Sᴜᴘᴘᴏʀᴛ", url: "https://t.me/Teleservices_Api_Group" } // Fixed duplicate URL
+                    { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" }
                 ]
             ];
 
             // Send welcome message
-            await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendPhoto`, { // Use env variable
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -44,16 +44,13 @@ async function handleCommand(update, env) { // Added env as parameter
         else if (command === '/ping') {
             const startTime = Date.now();
             
-            // Send initial ping message as photo
-            const photoUrl = "https://t.me/kajal_developer/59";
-            const pingMessage = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendPhoto`, { // Use env variable
+            // Send initial ping message
+            const pingMessage = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     chat_id: chatId,
-                    photo: photoUrl,
-                    caption: "🔄 Pinging....",
-                    parse_mode: "HTML"
+                    text: "🔄 Pinging...."
                 })
             });
             
@@ -61,31 +58,23 @@ async function handleCommand(update, env) { // Added env as parameter
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // Cloudflare Workers doesn't provide system metrics
-            const formatUptime = (seconds) => {
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                const secs = Math.floor(seconds % 60);
-                return `${hours}h:${minutes}m:${secs}s`;
-            };
-
             // Build status message
-            const caption = `
-<b>🏓 ᴩᴏɴɢ : ${latency}ᴍs</b>
+            const photoUrl = "https://t.me/kajal_developer/59";
+            const caption = `<b>🏓 ᴩᴏɴɢ : ${latency}ᴍs</b>`;
 
-↬ ᴜᴩᴛɪᴍᴇ : ${formatUptime(Math.floor(startTime / 1000))} 
-↬ ᴡᴏʀᴋᴇʀ ᴇɴᴠ : Cloudflare Worker
-            `.trim();
-
-            // Edit message caption only
-            await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/editMessageCaption`, { // Use env variable
+            // Edit message with status
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageMedia`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     chat_id: chatId,
                     message_id: pingResult.result.message_id,
-                    caption: caption,
-                    parse_mode: "HTML"
+                    media: {
+                        type: "photo",
+                        media: photoUrl,
+                        caption: caption,
+                        parse_mode: "HTML"
+                    }
                 })
             });
         }
@@ -98,18 +87,8 @@ export default {
     async fetch(request, env) {
         if (request.method === 'POST') {
             const update = await request.json();
-            
-            // Handle callback queries
-            if (update.callback_query) {
-                const data = update.callback_query.data;
-                const chatId = update.callback_query.message.chat.id;
-                // Add callback query handling logic here
-                // Example: if (data === '/2') { ... }
-                return new Response('OK');
-            }
-            
             if (update.message && update.message.text) {
-                await handleCommand(update, env); // Pass env to handler
+                await handleCommand(update, env.TELEGRAM_TOKEN);
             }
             return new Response('OK');
         }
