@@ -62,7 +62,7 @@ async function handleCommand(update) {
 
             // Edit message with latency
             await fetch(`https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto`, {
-               const photoUrl = "https://t.me/kajal_developer/59";
+               const photoUrl = "https://t.me/kajal_developer/59":
                 method: 'POST',
                 headers: {'Content-Type':
 'application/json'},
