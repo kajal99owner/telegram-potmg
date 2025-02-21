@@ -1,12 +1,6 @@
-name = "telegram-bot"
-main = "src/main.py"
-compatibility_date = "2024-03-20"
-compatibility_flags = [
-  "python_workers",
-  "python_stdlib", 
-  "nodejs_compat"
-]
+name = "tetegram-potmg"
+main = "worker.js"
+compatibility_date = "2025-02-12"
 
 [build]
-command = "cp -r src ."
-upload_dir = "src"
+upload.format = "modules"
