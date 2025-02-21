@@ -1,187 +1,152 @@
-const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const START_PIC = "https://t.me/kajal_developer/59"; // Replace with your image URL
+const BOT_TOKEN = "7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM"; // Set in Cloudflare Secrets
 
-const TXT = {
+const Txt = {
   START_TXT: `Hello {} 👋 
 
 ➻ 
 
+➻
+
+➻ 
+
+➻
 
 <b>Bot Is Made By :</b> @Madflix_Bots`,
 
   ABOUT_TXT: `
 ╭───────────────⍟
-├<b>🤖 My Name</b> : {}
+├<b>🤖 My Name</b> : {0}
 ├<b>🖥️ Developer</b> : <a href="https://t.me/Madflix_Bots">Madflix Botz</a> 
 ├<b>👨‍💻 Programer</b> : <a href="https://t.me/MadflixOfficials">Jishu Developer</a>
-├<b>📕 Library</b> : <a href="</a>
-├<b>✏️ Language</b> : <a href="></a>
-├<b>📊 Build Version</b> : <a href="">v1.0.0</a></b>     
+├<b>📕 Library</b> : <a href="#">Pyrogram</a>
+├<b>✏️ Language</b> : <a href="#">Python 3</a>
+├<b>📊 Build Version</b> : <a href="#">v1.0.0</a></b>     
 ╰───────────────⍟`,
 
-  HELP_TXT: "Your help text here",
-  DONATE_TXT: "Your donate text here"
+  HELP_TXT: "Your help text here...",
+  DONATE_TXT: "Your donate text here..."
 };
 
-async function handleRequest(request) {
-  try {
-    const update = await request.json();
+const makeKeyboard = (buttons) => ({
+  inline_keyboard: buttons
+});
+
+async function handleUpdate(request) {
+  const update = await request.json();
+  
+  if (update.message) {
+    const { chat, text } = update.message;
     
-    if (update.message) {
-      await handleMessage(update.message);
-    }
-    else if (update.callback_query) {
-      await handleCallbackQuery(update.callback_query);
-    }
-    
-    return new Response('OK');
-  } catch (error) {
-    return new Response(error.stack, { status: 200 });
-  }
-}
-
-async function handleMessage(message) {
-  const chatId = message.chat.id;
-  const text = message.text || '';
-  
-  if (text.startsWith('/start')) {
-    await sendStartMessage(chatId, message.from);
-  }
-  else if (text.startsWith('/donate') || text.startsWith('/d')) {
-    await sendDonateMessage(chatId);
-  }
-}
-
-async function sendStartMessage(chatId, user) {
-  const buttons = {
-    inline_keyboard: [
-      [
-        { text: '🔊 Updates', url: 'https://t.me/Madflix_Bots' },
-        { text: '♻️ Sᴜᴩᴩᴏʀᴛ', url: 'https://t.me/MadflixBots_Support' }
-      ],
-      [
-        { text: '❤️‍🩹 About', callback_data: 'about' },
-        { text: '🛠️ Help', callback_data: 'help' }
-      ],
-      [
-        { text: '👨‍💻 Developer', url: 'https://t.me/CallAdminRobot' }
-      ]
-    ]
-  };
-
-  const formattedText = TXT.START_TXT.replace('{}', user.first_name);
-
-  if (START_PIC) {
-    await sendPhoto(chatId, START_PIC, formattedText, buttons);
-  } else {
-    await sendMessage(chatId, formattedText, buttons);
-  }
-}
-
-async function handleCallbackQuery(query) {
-  const message = query.message;
-  const data = query.data;
-  
-  if (data === 'start') {
-    await editMessage(message, TXT.START_TXT.replace('{}', query.from.first_name), getStartButtons());
-  }
-  else if (data === 'help') {
-    await editMessage(message, TXT.HELP_TXT, {
-      inline_keyboard: [
-        [{ text: '⚡ 4GB Rename Bot', url: 'https://t.me/FileRenameXProBot' }],
+    if (text?.startsWith('/start')) {
+      const buttons = makeKeyboard([
         [
-          { text: '🔒 Close', callback_data: 'close' },
-          { text: '◀️ Back', callback_data: 'start' }
-        ]
-      ]
-    });
-  }
-  else if (data === 'about') {
-    await editMessage(message, TXT.ABOUT_TXT.replace('{}', BOT_NAME), {
-      inline_keyboard: [
-        [{ text: '🤖 More Bots', url: 'https://t.me/Madflix_Bots/7' }],
+          { text: '🔊 Updates', url: 'https://t.me/Madflix_Bots' },
+          { text: '♻️ Sᴜᴩᴩᴏʀᴛ', url: 'https://t.me/MadflixBots_Support' }
+        ],
         [
-          { text: '🔒 Cʟᴏꜱᴇ', callback_data: 'close' },
-          { text: '◀️ Bᴀᴄᴋ', callback_data: 'start' }
-        ]
-      ]
-    });
+          { text: '❤️‍🩹 About', callback_data: 'about' },
+          { text: '🛠️ Help', callback_data: 'help' }
+        ],
+        [{ text: '👨‍💻 Developer', url: 'https://t.me/CallAdminRobot' }]
+      ]);
+
+      const params = new URLSearchParams({
+        chat_id: chat.id,
+        text: Txt.START_TXT.replace("{}", `<a href="tg://user?id=${chat.id}">${chat.first_name}</a>`),
+        reply_markup: JSON.stringify(buttons),
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+      });
+
+      if (START_PIC) {
+        await sendPhoto(chat.id, START_PIC, params);
+      } else {
+        await sendMessage(params);
+      }
+    }
   }
-  else if (data === 'close') {
-    await deleteMessage(message.chat.id, message.message_id);
+
+  if (update.callback_query) {
+    const { data, message, from } = update.callback_query;
+    const chatId = message.chat.id;
+    const messageId = message.message_id;
+
+    switch (data) {
+      case 'start':
+        await editMessage({
+          chat_id: chatId,
+          message_id: messageId,
+          text: Txt.START_TXT.replace("{}", `<a href="tg://user?id=${from.id}">${from.first_name}</a>`),
+          reply_markup: makeKeyboard([/* same as start keyboard */]),
+          parse_mode: 'HTML'
+        });
+        break;
+
+      case 'help':
+        // Similar structure for help menu
+        break;
+
+      case 'about':
+        const botInfo = await getBotInfo();
+        await editMessage({
+          chat_id: chatId,
+          message_id: messageId,
+          text: Txt.ABOUT_TXT.replace("{0}", botInfo.username),
+          reply_markup: makeKeyboard([/* about keyboard */]),
+          parse_mode: 'HTML'
+        });
+        break;
+
+      case 'close':
+        await deleteMessage(chatId, messageId);
+        break;
+    }
   }
+
+  return new Response('OK');
 }
 
-async function sendDonateMessage(chatId) {
-  const buttons = {
-    inline_keyboard: [
-      [
-        { text: '🦋 Admin', url: 'https://t.me/CallAdminRobot' },
-        { text: '✖️ Close', callback_data: 'close' }
-      ]
-    ]
-  };
+// Telegram API helpers
+async function sendMessage(params) {
+  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?${params}`);
+}
+
+async function sendPhoto(chatId, photo, params) {
+  const formData = new FormData();
+  formData.append('chat_id', chatId);
+  formData.append('photo', photo);
+  formData.append('caption', params.get('text'));
+  formData.append('parse_mode', 'HTML');
+  formData.append('reply_markup', params.get('reply_markup'));
   
-  await sendMessage(chatId, TXT.DONATE_TXT, buttons);
-}
-
-// Helper functions
-async function sendMessage(chatId, text, replyMarkup) {
-  const payload = {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    disable_web_page_preview: true,
-    reply_markup: replyMarkup
-  };
-
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: formData
   });
 }
 
-async function sendPhoto(chatId, photo, caption, replyMarkup) {
-  const payload = {
-    chat_id: chatId,
-    photo: photo,
-    caption: caption,
-    parse_mode: 'HTML',
-    reply_markup: replyMarkup
-  };
-
-  await fetch(`${TELEGRAM_API}/sendPhoto`, {
+async function editMessage(params) {
+  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-}
-
-async function editMessage(message, text, replyMarkup) {
-  const payload = {
-    chat_id: message.chat.id,
-    message_id: message.message_id,
-    text: text,
-    parse_mode: 'HTML',
-    disable_web_page_preview: true,
-    reply_markup: replyMarkup
-  };
-
-  await fetch(`${TELEGRAM_API}/editMessageText`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(params)
   });
 }
 
 async function deleteMessage(chatId, messageId) {
-  await fetch(`${TELEGRAM_API}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`);
+  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`);
+}
+
+async function getBotInfo() {
+  const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`);
+  const data = await response.json();
+  return data.result;
 }
 
 export default {
   async fetch(request, env) {
-    BOT_TOKEN = env.BOT_TOKEN;
-    START_PIC = env.START_PIC;
-    return handleRequest(request);
+    BOT_TOKEN = env.BOT_TOKEN || BOT_TOKEN; // Use environment variable
+    return handleUpdate(request);
   }
 };
