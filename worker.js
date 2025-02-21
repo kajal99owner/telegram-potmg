@@ -70,7 +70,7 @@ async function handleCommand(update) {
                     media: {
                     type: "photo",
                     media: photoUrl,
-                    text: `Ping 🔥!\n\n${latency} ms`
+                    caption: `Ping 🔥!\n\n${latency} ms`
                 })
             });
         }
