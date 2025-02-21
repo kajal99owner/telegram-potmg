@@ -11,7 +11,7 @@ async function handleCommand(update) {
             // Delete the original /start message
             await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chat_id: chatId,
                     message_id: messageId
@@ -33,7 +33,7 @@ async function handleCommand(update) {
             // Send welcome message
             await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chat_id: chatId,
                     photo: photoUrl,
@@ -45,36 +45,35 @@ async function handleCommand(update) {
         }
         else if (command === '/ping') {
             const startTime = Date.now();
-            
-            // Send initial ping message
-            const pingMessage = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+            const photoUrl = "https://t.me/kajal_developer/59";
+
+            // Send initial photo message with temporary caption
+            const pingMessage = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chat_id: chatId,
-                    text: "Pinging...."
+                    photo: photoUrl,
+                    caption: "Pinging...."
                 })
             });
-            
+
             const pingResult = await pingMessage.json();
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            const photoUrl = "https://t.me/kajal_developer/59";
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageMedia`, {
+            // Edit the caption of the photo message
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageCaption`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chat_id: chatId,
                     message_id: pingResult.result.message_id,
-                    media: {
-                    type: "photo",
-                    media: photoUrl,
                     caption: `Ping 🔥!\n\n${latency} ms`
-                }
-            })
+                })
+            });
         }
-    ) catch (error) {
+    } catch (error) {
         console.error('Error handling command:', error);
     }
 }
