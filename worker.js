@@ -61,16 +61,19 @@ async function handleCommand(update) {
             const latency = endTime - startTime;
 
             // Edit message with latency
-            await fetch(`https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto`, {
-               const photoUrl = "https://t.me/kajal_developer/59":
+            const photoUrl = "https://t.me/kajal_developer/59";
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageMedia`, {
                 method: 'POST',
-                headers: {'Content-Type':
-'application/json'},
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     chat_id: chatId,
-                    photo: photoUrl,
                     message_id: pingResult.result.message_id,
-                    caption: `Ping 🔥!\n\n${latency} ms`
+                    media: {
+                        type: "photo",
+                        media: photoUrl,
+                        caption: `Ping 🔥!\n\n${latency} ms`,
+                        parse_mode: "HTML"
+                    }
                 })
             });
         }
