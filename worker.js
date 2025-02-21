@@ -60,13 +60,16 @@ async function handleCommand(update) {
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // Edit message with latency
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+            const photoUrl = "https://t.me/kajal_developer/59";
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageMedia`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     chat_id: chatId,
                     message_id: pingResult.result.message_id,
+                    media: {
+                    type: "photo",
+                    media: photoUrl,
                     text: `Ping 🔥!\n\n${latency} ms`
                 })
             });
