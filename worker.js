@@ -71,26 +71,26 @@ async function handleRequest(request) {
         }
 
         // Card generation command
-        if (/^(\/|!|\.)gen/.test(text)) {
-            const generateCard = () => {
-                const prefixes = ['4', '5', '34', '37'];
-                const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-                let card = prefix;
-                
-                while (card.length < 16) {
-                    card += Math.floor(Math.random() * 10);
-                }
-                
-                const mm = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-                const yy = String(new Date().getFullYear() % 100 + Math.floor(Math.random() * 5) + 1);
-                const cvv = String(Math.floor(Math.random() * 900) + 100;
-                
-                return `${card}|${mm}|${yy}|${cvv}`;
-            };
-            
-            const cards = Array.from({length: 5}, generateCard).join('\n');
-            await sendMessage(chatId, `<b>Generated Cards:\n<code>${cards}</code></b>`, messageId);
+if (/^(\/|!|\.)gen/.test(text)) {
+    const generateCard = () => {
+        const prefixes = ['4', '5', '34', '37'];
+        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+        let card = prefix;
+        
+        while (card.length < 16) {
+            card += Math.floor(Math.random() * 10);
         }
+        
+        const mm = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
+        const yy = String(new Date().getFullYear() % 100 + Math.floor(Math.random() * 5) + 1);
+        const cvv = String(Math.floor(Math.random() * 900) + 100);
+        
+        return `${card}|${mm}|${yy}|${cvv}`;
+    };
+    
+    const cards = Array.from({length: 5}, generateCard).join('\n');
+    await sendMessage(chatId, `<b>Generated Cards:\n<code>${cards}</code></b>`, messageId);
+}
 
     } catch (error) {
         console.error('Error:', error);
