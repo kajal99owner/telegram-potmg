@@ -1,156 +1,112 @@
-import { URLSearchParams } from 'url';
-import fetch from 'node-fetch'; // Or use the built-in 'fetch' if you prefer.
-import _ from 'lodash';
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event));
+});
 
-const BOT_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; // Replace with your actual token
+const BOT_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; // Replace with your bot token (ideally, use a Cloudflare Secret)
 const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-async function handleRequest(request) {
+async function handleRequest(event) {
+  try {
+    const request = event.request;
+    const url = new URL(request.url);
     if (request.method === 'POST') {
-        try {
-            const update = await request.json();
-            if (update.message) {
-                await handleMessage(update.message);
-            }
-        } catch (error) {
-            console.error('Error processing update:', error);
-            return new Response('Error processing update', { status: 500 });
-        }
-    } else {
-        return new Response(
-            'This is a Telegram bot worker. Send POST requests with Telegram updates.',
-            { status: 200 }
-        );
+      const update = await request.json();
+      if (update.message && update.message.text) {
+        return await handleMessage(update.message);
+      }
     }
-    return new Response('OK', { status: 200 });
+    return new Response('OK', { status: 200 }); // Respond to webhook pings
+  } catch (error) {
+    console.error('Error:', error); // Log the error to Cloudflare Workers logs
+    return new Response('Internal Server Error', { status: 500 });
+  }
 }
 
 async function handleMessage(message) {
-    const chatId = message.chat.id;
-    const text = message.text;
+  const chatId = message.chat.id;
+  const text = message.text;
 
-    if (text && text.startsWith('/gate')) {
-        const domain = text.substring(5).trim(); // Extract domain after /gate
-        if (!domain) {
-            await sendMessage(chatId, 'Please provide a domain after /gate (e.g., /gate example.com)');
-            return;
-        }
-
-        await processGateCommand(chatId, domain);
-    } else if (text === '/start') {
-        await sendMessage(chatId, 'Welcome! Use /gate <domain> to check gateway information.');
-    } else {
-        // You can add more commands here
-        // await sendMessage(chatId, 'Unknown command. Try /gate <domain>.');
-    }
+  if (text.startsWith('/gate')) {
+    return await handleGateCommand(chatId, text);
+  } else {
+    // Handle other commands or default message
+    return await sendMessage(chatId, 'I only know the /gate command right now.');
+  }
 }
 
-async function processGateCommand(chatId, domain) {
-    try {
-        const startTime = Date.now();
+async function handleGateCommand(chatId, text) {
+  const domain = extractDomain(text); // Implement extractDomain function (see below)
 
-        // Basic domain validation (you can add more robust validation)
-        if (!isValidDomain(domain)) {
-            await sendMessage(chatId, 'Invalid domain format.');
-            return;
-        }
+  if (!domain) {
+    return await sendMessage(chatId, 'Please provide a domain. Example: /gate example.com');
+  }
 
-        // 1. Fetch website (This is where you'd check for Captcha/Cloudflare)
-        let response;
-        try {
-            response = await fetch(`https://${domain}`, {
-                redirect: 'manual', // prevent redirect so we can check response status first
-            });
-        } catch (fetchError) {
-            console.error("Fetch error: ", fetchError);
-            await sendMessage(chatId, `Error fetching ${domain}: ${fetchError.message}`);
-            return;
-        }
+  const startTime = performance.now(); // Start timer
 
-        const endTime = Date.now();
-        const timeTaken = (endTime - startTime) / 1000; // in seconds
+  const securityInfo = await getSecurityInfo(domain); // Implement getSecurityInfo function (see below)
 
-        // 2. Analyze Response
-        const isCloudflare = response.headers.get('server')?.includes('cloudflare');
-        const hasCaptcha = response.status === 503 && response.headers.get('server')?.includes('cloudflare'); // Example check, adjust as needed
+  const endTime = performance.now(); // End timer
+  const timeTaken = (endTime - startTime).toFixed(3);
 
-        // 3. Collect Gateway Info (This is where you might query databases, APIs, etc.)
-        const gateways = await getGatewaysForDomain(domain); // Implement this function
+  const messageText = `
+┏━━━━『 𝓖𝓪𝓽𝓮𝔀𝓪𝔂 𝓡𝓮𝓼𝓾𝓵𝓽𝓼 』━━━━┓
 
-        // 4. Build the Response Message
-        let message = `┏━━━━『 𝓖𝓪𝓽𝓮𝔀𝓪𝔂 𝓡𝓮𝓼𝓾𝓵𝓽𝓼 』━━━━┓\n\n`;
-        message += `🔍 𝗗𝗼𝗺𝗮𝗶𝗻: ${domain}\n`;
-        message += `💳 𝗚𝗮𝘁𝗲𝘄𝗮𝘆𝘀: ${gateways.length > 0 ? gateways.join(', ') : 'N/A'}\n\n`;
-        message += `🛡️ 𝗦𝗲𝗰𝘂𝗿𝗶𝘁𝘆:\n`;
-        message += `   ├─ 𝗖𝗮𝗽𝘁𝗰𝗵𝗮: ${hasCaptcha ? '⛔' : '✅'}\n`;
-        message += `   └─ 𝗖𝗹𝗼𝘂𝗱𝗳𝗹𝗮𝗿𝗲: ${isCloudflare ? '✅' : '⛔'}\n\n`;
-        message += `⏱️ 𝗧𝗶𝗺𝗲: ${timeTaken.toFixed(2)}s\n`;
-        message += `┗━━━━『 @YourBotUsername 』━━━━`;  // Replace YourBotUsername
+🔍 𝗗𝗼𝗺𝗮𝗶𝗻: ${domain}
+💳 𝗚𝗮𝘁𝗲𝘄𝗮𝘆𝘀:  (Not Implemented Yet)
 
-        await sendMessage(chatId, message);
+🛡️ 𝗦𝗲𝗰𝘂𝗿𝗶𝘁𝘆:
+   ├─ 𝗖𝗮𝗽𝘁𝗰𝗵𝗮: ${securityInfo.captcha ? '✅' : '⛔'}
+   └─ 𝗖𝗹𝗼𝘂𝗱𝗳𝗹𝗮𝗿𝗲: ${securityInfo.cloudflare ? '✅' : '⛔'}
 
-    } catch (error) {
-        console.error('Error processing /gate command:', error);
-        await sendMessage(chatId, `Error processing command: ${error.message}`);
-    }
+⏱️ 𝗧𝗶𝗺𝗲: ${timeTaken}s
+
+┗━━━━『 @${'YOUR_BOT_USERNAME'} 』━━━━`;  // Replace with your bot username
+
+  return await sendMessage(chatId, messageText);
 }
 
-async function getGatewaysForDomain(domain) {
-    // **IMPORTANT:** Replace this with your actual gateway data retrieval logic.
-    // This could involve querying a database, an API, or a static list.
-    // For example, if you had a simple mapping:
-    const gatewayMap = {
-        'example.com': ['Stripe', 'PayPal'],
-        'cloudflare.com': ['Cloudflare Gateway'],
-    };
-
-    return gatewayMap[domain] || []; // Returns an array of gateways or an empty array if not found.
+// Helper function to extract the domain from the command
+function extractDomain(text) {
+  const parts = text.split(' ');
+  if (parts.length > 1) {
+    return parts[1].trim();
+  }
+  return null;
 }
+
+// Helper function to get security information (simulated for now)
+async function getSecurityInfo(domain) {
+  // In a real implementation, you would use APIs or libraries to check for
+  // Captcha and Cloudflare presence.  This is just a placeholder.
+
+  // Simulate checking for Cloudflare and Captcha using random values.
+  const cloudflare = Math.random() < 0.5;
+  const captcha = Math.random() < 0.5;
+
+  return {
+    cloudflare: cloudflare,
+    captcha: captcha,
+  };
+}
+
 
 async function sendMessage(chatId, text) {
-    const params = new URLSearchParams();
-    params.append('chat_id', chatId);
-    params.append('text', text);
-    params.append('parse_mode', 'Markdown'); // Optional: Enable Markdown formatting
-
-    try {
-        const response = await fetch(`${API_URL}/sendMessage`, {
-            method: 'POST',
-            body: params,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        });
-
-        if (!response.ok) {
-            console.error('Error sending message:', response.status, response.statusText);
-            const errorBody = await response.text(); // Get the error message from Telegram
-            console.error('Error body:', errorBody);
-            throw new Error(`Telegram API error: ${response.status} ${response.statusText} - ${errorBody}`);
-        }
-
-        const json = await response.json();
-        if (!json.ok) {
-            console.error('Telegram API error (JSON):', json);
-            throw new Error(`Telegram API error (JSON): ${JSON.stringify(json)}`);
-        }
-
-        return json;
-    } catch (error) {
-        console.error('Error sending message:', error);
-        throw error; // Re-throw the error to be handled by the caller.
-    }
-}
-
-function isValidDomain(domain) {
-    // Basic domain validation using a regular expression.
-    //  You can use more strict validation if required.
-    const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/;
-    return domainRegex.test(domain);
-}
-
-export default {
-    async fetch(request, env, ctx) {
-        return handleRequest(request);
+  const url = `${API_URL}/sendMessage`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
-};
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text,
+      parse_mode: 'Markdown', // Enable Markdown for formatting
+    }),
+  });
+
+  if (!response.ok) {
+    console.error('Error sending message:', response.status, await response.text());
+  }
+
+  return new Response('OK', { status: 200 });
+}
