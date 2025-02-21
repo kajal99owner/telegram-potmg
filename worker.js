@@ -1,152 +1,140 @@
-const START_PIC = "https://t.me/kajal_developer/59"; // Replace with your image URL
-const BOT_TOKEN = "7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM"; // Set in Cloudflare Secrets
+// cloudflare-worker.js
+const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
+const MAILTM_API = 'https://api.mail.tm';
+const KV_NAMESPACE = 'mailtm_bot_kv'; // Create in Cloudflare KV
 
-const Txt = {
-  START_TXT: `Hello {} 👋 
+async function handleRequest(request) {
+    const url = new URL(request.url);
+    if (url.pathname === `/${TELEGRAM_TOKEN}` && request.method === 'POST') {
+        return handleTelegramUpdate(await request.json());
+    }
+    return new Response('Not Found', { status: 404 });
+}
 
-➻ 
-
-➻
-
-➻ 
-
-➻
-
-<b>Bot Is Made By :</b> @Madflix_Bots`,
-
-  ABOUT_TXT: `
-╭───────────────⍟
-├<b>🤖 My Name</b> : {0}
-├<b>🖥️ Developer</b> : <a href="https://t.me/Madflix_Bots">Madflix Botz</a> 
-├<b>👨‍💻 Programer</b> : <a href="https://t.me/MadflixOfficials">Jishu Developer</a>
-├<b>📕 Library</b> : <a href="#">Pyrogram</a>
-├<b>✏️ Language</b> : <a href="#">Python 3</a>
-├<b>📊 Build Version</b> : <a href="#">v1.0.0</a></b>     
-╰───────────────⍟`,
-
-  HELP_TXT: "Your help text here...",
-  DONATE_TXT: "Your donate text here..."
-};
-
-const makeKeyboard = (buttons) => ({
-  inline_keyboard: buttons
-});
-
-async function handleUpdate(request) {
-  const update = await request.json();
-  
-  if (update.message) {
-    const { chat, text } = update.message;
+async function handleTelegramUpdate(update) {
+    const chatId = update.message.chat.id;
+    const text = update.message.text;
     
-    if (text?.startsWith('/start')) {
-      const buttons = makeKeyboard([
-        [
-          { text: '🔊 Updates', url: 'https://t.me/Madflix_Bots' },
-          { text: '♻️ Sᴜᴩᴩᴏʀᴛ', url: 'https://t.me/MadflixBots_Support' }
-        ],
-        [
-          { text: '❤️‍🩹 About', callback_data: 'about' },
-          { text: '🛠️ Help', callback_data: 'help' }
-        ],
-        [{ text: '👨‍💻 Developer', url: 'https://t.me/CallAdminRobot' }]
-      ]);
-
-      const params = new URLSearchParams({
-        chat_id: chat.id,
-        text: Txt.START_TXT.replace("{}", `<a href="tg://user?id=${chat.id}">${chat.first_name}</a>`),
-        reply_markup: JSON.stringify(buttons),
-        parse_mode: 'HTML',
-        disable_web_page_preview: true
-      });
-
-      if (START_PIC) {
-        await sendPhoto(chat.id, START_PIC, params);
-      } else {
-        await sendMessage(params);
-      }
+    // Command router
+    if (text.startsWith('/start')) {
+        return sendMessage(chatId, `📧 Welcome to TempMail Bot!\n\nAvailable commands:\n/create - Generate new email\n/inbox - Check messages\n/read [id] - Read message\n/help - Show help`);
     }
-  }
-
-  if (update.callback_query) {
-    const { data, message, from } = update.callback_query;
-    const chatId = message.chat.id;
-    const messageId = message.message_id;
-
-    switch (data) {
-      case 'start':
-        await editMessage({
-          chat_id: chatId,
-          message_id: messageId,
-          text: Txt.START_TXT.replace("{}", `<a href="tg://user?id=${from.id}">${from.first_name}</a>`),
-          reply_markup: makeKeyboard([/* same as start keyboard */]),
-          parse_mode: 'HTML'
-        });
-        break;
-
-      case 'help':
-        // Similar structure for help menu
-        break;
-
-      case 'about':
-        const botInfo = await getBotInfo();
-        await editMessage({
-          chat_id: chatId,
-          message_id: messageId,
-          text: Txt.ABOUT_TXT.replace("{0}", botInfo.username),
-          reply_markup: makeKeyboard([/* about keyboard */]),
-          parse_mode: 'HTML'
-        });
-        break;
-
-      case 'close':
-        await deleteMessage(chatId, messageId);
-        break;
+    
+    if (text.startsWith('/create')) {
+        return createAccount(chatId);
     }
-  }
-
-  return new Response('OK');
+    
+    if (text.startsWith('/inbox')) {
+        return getInbox(chatId);
+    }
+    
+    if (text.startsWith('/read')) {
+        const messageId = text.split(' ')[1];
+        return getMessage(chatId, messageId);
+    }
+    
+    if (text.startsWith('/help')) {
+        return sendMessage(chatId, `🛠 Commands:\n\n/create - Create new temporary email\n/inbox - List recent messages\n/read [id] - Show message content\n/help - Show this help`);
+    }
+    
+    return sendMessage(chatId, '❌ Unknown command. Use /help for available commands');
 }
 
-// Telegram API helpers
-async function sendMessage(params) {
-  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?${params}`);
+// Mail.tm API Operations
+async function createAccount(chatId) {
+    try {
+        // Get available domains
+        const domains = await fetch(`${MAILTM_API}/domains`).then(r => r.json());
+        const domain = domains['hydra:member'][0].domain;
+        
+        // Generate credentials
+        const username = Math.random().toString(36).substring(2, 12) + domain;
+        const password = Math.random().toString(36).substring(2, 16);
+        
+        // Create account
+        const account = await fetch(`${MAILTM_API}/accounts`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ address: username, password })
+        });
+        
+        if (!account.ok) throw new Error('Account creation failed');
+        
+        // Get token
+        const token = await fetch(`${MAILTM_API}/token`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ address: username, password })
+        }).then(r => r.json());
+        
+        // Store in KV
+        await KV_NAMESPACE.put(chatId, JSON.stringify({
+            email: username,
+            password,
+            token: token.token
+        }));
+        
+        return sendMessage(chatId, `✅ New email created:\n📧 ${username}\n🔑 ${password}\n\nAccount will expire after 10 minutes of inactivity.`);
+    } catch (e) {
+        return sendMessage(chatId, `❌ Error creating account: ${e.message}`);
+    }
 }
 
-async function sendPhoto(chatId, photo, params) {
-  const formData = new FormData();
-  formData.append('chat_id', chatId);
-  formData.append('photo', photo);
-  formData.append('caption', params.get('text'));
-  formData.append('parse_mode', 'HTML');
-  formData.append('reply_markup', params.get('reply_markup'));
-  
-  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-    method: 'POST',
-    body: formData
-  });
+async function getInbox(chatId) {
+    try {
+        const userData = JSON.parse(await KV_NAMESPACE.get(chatId));
+        if (!userData) return sendMessage(chatId, '❌ No active session. Use /create first');
+        
+        const messages = await fetch(`${MAILTM_API}/messages`, {
+            headers: { Authorization: `Bearer ${userData.token}` }
+        }).then(r => r.json());
+        
+        let response = `📥 Inbox (${messages['hydra:totalItems']} messages):\n\n`;
+        messages['hydra:member'].forEach(msg => {
+            response += `🔸 ${msg.subject}\nFrom: ${msg.from.address}\nID: ${msg.id}\n\n`;
+        });
+        
+        return sendMessage(chatId, response || 'No messages found');
+    } catch (e) {
+        return sendMessage(chatId, `❌ Error fetching inbox: ${e.message}`);
+    }
 }
 
-async function editMessage(params) {
-  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params)
-  });
+async function getMessage(chatId, messageId) {
+    if (!messageId) return sendMessage(chatId, '❌ Please provide message ID (e.g., /read 123)');
+    
+    try {
+        const userData = JSON.parse(await KV_NAMESPACE.get(chatId));
+        if (!userData) return sendMessage(chatId, '❌ No active session');
+        
+        const message = await fetch(`${MAILTM_API}/messages/${messageId}`, {
+            headers: { Authorization: `Bearer ${userData.token}` }
+        }).then(r => r.json());
+        
+        const response = `📨 Message:\n\nSubject: ${message.subject}\nFrom: ${message.from.address}\n\n${message.text}`;
+        return sendMessage(chatId, response.slice(0, 4096)); // Telegram message limit
+    } catch (e) {
+        return sendMessage(chatId, `❌ Error fetching message: ${e.message}`);
+    }
 }
 
-async function deleteMessage(chatId, messageId) {
-  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`);
+// Telegram API Helper
+async function sendMessage(chatId, text) {
+    return fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            parse_mode: 'Markdown'
+        })
+    });
 }
 
-async function getBotInfo() {
-  const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`);
-  const data = await response.json();
-  return data.result;
-}
-
+// Cloudflare Worker setup
 export default {
-  async fetch(request, env) {
-    BOT_TOKEN = env.BOT_TOKEN || BOT_TOKEN; // Use environment variable
-    return handleUpdate(request);
-  }
+    async fetch(request, env) {
+        KV_NAMESPACE = env.MAILTM_BOT_KV; // Bind KV namespace
+        return handleRequest(request);
+    }
 };
