@@ -74,7 +74,7 @@ async function handleCommand(update) {
                 }
             })
         }
-    } catch (error) {
+    ) catch (error) {
         console.error('Error handling command:', error);
     }
 }
