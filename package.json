@@ -1,7 +1,5 @@
 {
-  "name": "telegram-bot-worker",
-  "version": "1.0.0",
   "dependencies": {
-    "pyodide": "^0.25.0"
+    "@cloudflare/wrangler": "^3.15.0"
   }
 }
