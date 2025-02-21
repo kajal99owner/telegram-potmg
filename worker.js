@@ -1,224 +1,229 @@
-// Cloudflare Worker Telegram Bot with YouTube Downloader
+// Replace with your Telegram Bot API token
+const BOT_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
+const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const YOUTUBE_DL_PROXY_API = 'https://api.githubcopilot.com/youtube_dl_proxy?url='; // Replace with your proxy
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Telegram limit (adjust as needed)
+const MAX_REQUESTS_PER_MINUTE = 10; // Basic rate limiting (adjust as needed)
+const requestCounts = new Map();
 
-// --- Configuration ---
-const BOT_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; // Replace with your bot's token
-const BASE_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const YTDL_API_URL = 'https://yt-download.org/api/widget/analyze'; // Example API (Use with caution and respect their terms)
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
-
-// --- Utility Functions ---
-
-// Function to send a Telegram API request
-async function telegramApi(method, params = {}) {
-  const url = `${BASE_URL}/${method}`;
-  const options = {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  };
-  const response = await fetch(url, options);
-  return response.json();
-}
-
-// Function to send a message to a chat
-async function sendMessage(chat_id, text, reply_markup = null, parse_mode = 'Markdown') {
-  const params = {
-    chat_id,
-    text,
-    parse_mode,
-  };
-  if (reply_markup) {
-    params.reply_markup = reply_markup;
-  }
-  return telegramApi('sendMessage', params);
-}
-
-// Function to edit a message
-async function editMessage(chat_id, message_id, text, reply_markup = null, parse_mode = 'Markdown') {
-  const params = {
-    chat_id,
-    message_id,
-    text,
-    parse_mode,
-  };
-  if (reply_markup) {
-    params.reply_markup = reply_markup;
-  }
-  return telegramApi('editMessageText', params);
+async function handleStartCommand(chatId) {
+    const text = 'Welcome! Send me a YouTube video URL using the /url command.  For example: `/url https://www.youtube.com/watch?v=dQw4w9WgXcQ`';
+    await sendMessage(chatId, text);
 }
 
 
-// Function to delete a message
-async function deleteMessage(chat_id, message_id) {
-  const params = {
-    chat_id,
-    message_id,
-  };
-  return telegramApi('deleteMessage', params);
-}
+async function handleURLCommand(chatId, messageId, url) {
+    // Basic URL validation
+    if (!url || !url.match(/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//)) {
+        await sendMessage(chatId, 'Please provide a valid YouTube URL.');
+        return;
+    }
+
+    // Rate limiting (basic)
+    const now = Date.now();
+    const userRequests = requestCounts.get(chatId) || [];
+    const recentRequests = userRequests.filter(ts => now - ts < 60000); // Within the last minute
+    if (recentRequests.length >= MAX_REQUESTS_PER_MINUTE) {
+        await sendMessage(chatId, 'You have reached the request limit. Please try again later.');
+        return;
+    }
+    requestCounts.set(chatId, [...recentRequests, now]);
 
 
-// Function to generate download buttons
-function generateDownloadButtons(formats) {
-  const buttons = [];
-  for (const format of formats) {
-      if (format.ext === 'mp4' || format.ext === 'webm' || format.ext === 'mp3') { // Filter based on desired extensions
-          buttons.push({
-              text: `Download ${format.ext.toUpperCase()} - ${format.quality || format.resolution || format.abr || 'Unknown'}`, // Include quality/resolution/abr
-              callback_data: `download_${format.url}`
-          });
-      }
-  }
+    // Send initial processing message and store its ID
+    const processingMessage = await sendMessage(chatId, '⌛️ Your request is processing...', null, messageId);
+    const processingMessageId = processingMessage.result.message_id;
 
-  if (buttons.length === 0) {
-      return null; // No suitable formats found
-  }
 
-  const rows = [];
-  for (let i = 0; i < buttons.length; i += 2) {
-    const row = buttons.slice(i, i + 2);
-    rows.push(row);
-  }
-
-  return {
-    inline_keyboard: rows,
-  };
-}
-
-// Function to process the YouTube URL and fetch download links
-async function processYouTubeURL(chat_id, message_id, youtubeUrl) {
     try {
-        await editMessage(chat_id, message_id, "⌛️ Your request is processing..."); // Initial processing message
-
-        const ytDownloadResponse = await fetch(YTDL_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': USER_AGENT,
-            },
-            body: `url=${encodeURIComponent(youtubeUrl)}`,
-        });
-
-        if (!ytDownloadResponse.ok) {
-            console.error('Error from yt-download API:', await ytDownloadResponse.text());
-            await editMessage(chat_id, message_id, "❌ Error processing the YouTube URL. Please check the URL or try again later.");
-            return;
+        // Fetch download info from the proxy
+        const proxyResponse = await fetch(`${YOUTUBE_DL_PROXY_API}${encodeURIComponent(url)}`);
+        if (!proxyResponse.ok) {
+            throw new Error(`Proxy API error: ${proxyResponse.status} - ${await proxyResponse.text()}`);
         }
+        const videoInfo = await proxyResponse.json();
 
-        const ytDownloadData = await ytDownloadResponse.json();
+        if (!videoInfo || !videoInfo.formats || videoInfo.formats.length === 0) {
+          await editMessage(chatId, processingMessageId, '❌ No downloadable formats found.');
+          return;
+      }
+        // Filter formats (optional - customize as needed)
+        const filteredFormats = videoInfo.formats.filter(format =>
+            (format.ext === 'mp4' || format.ext === 'webm' || format.ext === 'm4a')
+        );
 
-        if (!ytDownloadData || !ytDownloadData.links) {
-            console.error('Invalid response from yt-download API:', ytDownloadData);
-            await editMessage(chat_id, message_id, "❌ Could not find download links for this video.");
-            return;
-        }
+        // Create inline keyboard buttons
+        const keyboard = {
+            inline_keyboard: filteredFormats.map(format => [{
+                text: `${format.format_note || format.ext} (${format.filesize ? format.filesize : 'Unknown Size'})`,
+                callback_data: `download:${format.url}:${format.ext}:${format.filesize}:${videoInfo.title}`
+            }])
+        };
 
-        const downloadButtons = generateDownloadButtons(ytDownloadData.links);
-
-        if (!downloadButtons) {
-            await editMessage(chat_id, message_id, "❌ No suitable download formats found for this video.");
-            return;
-        }
-
-        await editMessage(chat_id, message_id, `Download formats ↓`, {
-            reply_markup: downloadButtons
-        });
+        // Edit the processing message to show download options
+        await editMessage(chatId, processingMessageId, 'Download formats ↓', keyboard);
 
     } catch (error) {
-        console.error('Error processing YouTube URL:', error);
-        await editMessage(chat_id, message_id, "❌ An error occurred while processing your request.  Please try again.");
+        console.error(error);
+        await editMessage(chatId, processingMessageId, `❌ An error occurred: ${error.message}`);
     }
 }
 
+async function handleCallbackQuery(callbackQuery) {
+  const chatId = callbackQuery.message.chat.id;
+  const messageId = callbackQuery.message.message_id;
+  const data = callbackQuery.data;
+
+  if (data.startsWith('download:')) {
+      const [, downloadUrl, ext, filesize, title] = data.split(':');
+      const decodedTitle = decodeURIComponent(title); // Decode the title
+
+      // Check file size before attempting to send
+      const fileSizeNum = parseInt(filesize, 10);
+        if (!isNaN(fileSizeNum) && fileSizeNum > MAX_FILE_SIZE) {
+          await editMessage(chatId, messageId, `File is too large to send via Telegram.  Direct link:\n${downloadUrl}`);
+          return;
+      }
+      await editMessage(chatId, messageId, '⬇️ Downloading...');
 
 
+      try {
+          // Fetch the video content
+        const videoResponse = await fetch(downloadUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36'
+              }
+          });
+          if (!videoResponse.ok) {
+            throw new Error(`Download failed: ${videoResponse.status}`);
+          }
+           const arrayBuffer = await videoResponse.arrayBuffer();
+            const blob = new Blob([arrayBuffer]);
 
-// --- Event Handler ---
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request));
-});
-
-async function handleRequest(request) {
-  if (request.method === 'POST') {
-    const body = await request.json();
-
-    if (body.message) {
-      const message = body.message;
-      const chatId = message.chat.id;
-      const text = message.text;
-
-      if (text && text.startsWith('/url ')) {
-          const youtubeUrl = text.substring(5).trim(); // Extract URL
-
-          if (!youtubeUrl) {
-              await sendMessage(chatId, "Please provide a YouTube URL after the /url command.");
-              return new Response(null, {status: 200});
+          // Send the video/audio
+          if (ext === 'mp4' || ext === 'webm') {
+              await sendVideo(chatId, blob, `${decodedTitle}.${ext}`);
+          } else if (ext === 'm4a') {
+              await sendAudio(chatId, blob, `${decodedTitle}.${ext}`);
+          } else {
+            await editMessage(chatId, messageId, `Unsupported file type: ${ext}`);
+            return;
           }
 
-          const processingMessage = await sendMessage(chatId, "⌛️ Your request is processing...");
-          const processingMessageId = processingMessage.result.message_id;
-          await processYouTubeURL(chatId, processingMessageId, youtubeUrl);
-          return new Response(null, {status: 200});
+
+          await editMessage(chatId, messageId, '✅ Download successful!');
+
+      } catch (error) {
+          console.error(error);
+          await editMessage(chatId, messageId, `❌ Download failed: ${error.message}`);
       }
-    } else if (body.callback_query) {
-        const callbackQuery = body.callback_query;
-        const callbackData = callbackQuery.data;
-        const message = callbackQuery.message;
-        const chatId = message.chat.id;
-        const messageId = message.message_id;
-
-        if (callbackData && callbackData.startsWith('download_')) {
-            const downloadUrl = callbackData.substring(9);  // Extract URL
-            await telegramApi('answerCallbackQuery', { callback_query_id: callbackQuery.id }); // Acknowledge the button press
-
-            try {
-              // Send the video/audio
-              await telegramApi('sendChatAction', { chat_id: chatId, action: 'upload_document' });
-                const downloadResponse = await fetch(downloadUrl, {
-                  headers: {
-                      'User-Agent': USER_AGENT,
-                  }
-                });
-
-                if (!downloadResponse.ok) {
-                    console.error('Error downloading file:', await downloadResponse.text());
-                    await editMessage(chatId, messageId, "❌ Error downloading the file.");
-                    return;
-                }
-
-                const contentType = downloadResponse.headers.get('content-type');
-                const filename =  decodeURIComponent(new URL(downloadUrl).pathname.split('/').pop()); //Extract Filename
-
-                if (contentType.startsWith('video/')) {
-                    await telegramApi('sendVideo', {
-                        chat_id: chatId,
-                        video: await downloadResponse.blob(),
-                        filename: filename,
-                        supports_streaming: true //For streaming
-                    });
-                } else if (contentType.startsWith('audio/')) {
-                    await telegramApi('sendAudio', {
-                        chat_id: chatId,
-                        audio: await downloadResponse.blob(),
-                        filename: filename,
-                    });
-                } else {
-                    await telegramApi('sendDocument', {
-                        chat_id: chatId,
-                        document: await downloadResponse.blob(),
-                        filename: filename,
-                    });
-                }
-               await deleteMessage(chatId, messageId);
-
-            } catch (error) {
-                console.error('Error sending file:', error);
-                await editMessage(chatId, messageId, "❌ An error occurred while sending the file.");
-            }
-        }
-
-        return new Response(null, { status: 200 });
-    }
   }
-  return new Response('OK', { status: 200 });
 }
+
+
+async function handleMessage(message) {
+    const chatId = message.chat.id;
+    const messageId = message.message_id;
+    const text = message.text;
+
+    if (text === '/start') {
+        await handleStartCommand(chatId);
+    } else if (text && text.startsWith('/url ')) {
+        const url = text.substring(5).trim();
+        await handleURLCommand(chatId, messageId, url);
+    } else {
+        await sendMessage(chatId, 'I don\'t understand that command. Use /start or /url.');
+    }
+}
+
+async function sendMessage(chatId, text, replyMarkup = null, replyToMessageId = null) {
+    const body = {
+        chat_id: chatId,
+        text: text,
+        parse_mode: 'Markdown', // Use Markdown for formatting
+    };
+    if (replyMarkup) {
+        body.reply_markup = replyMarkup;
+    }
+    if (replyToMessageId) {
+      body.reply_to_message_id = replyToMessageId;
+    }
+    return fetch(`${TELEGRAM_API}/sendMessage`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+}
+
+
+async function editMessage(chatId, messageId, text, replyMarkup = null) {
+  const body = {
+      chat_id: chatId,
+      message_id: messageId,
+      text: text,
+      parse_mode: 'Markdown',
+  };
+  if (replyMarkup) {
+      body.reply_markup = replyMarkup;
+  }
+
+  return fetch(`${TELEGRAM_API}/editMessageText`, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+  });
+}
+
+
+async function sendVideo(chatId, videoBlob, filename) {
+  const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('video', videoBlob, filename);
+
+    return fetch(`${TELEGRAM_API}/sendVideo`, {
+        method: 'POST',
+        body: formData,
+    });
+}
+
+async function sendAudio(chatId, audioBlob, filename) {
+  const formData = new FormData();
+  formData.append('chat_id', chatId);
+  formData.append('audio', audioBlob, filename);
+
+  return fetch(`${TELEGRAM_API}/sendAudio`, {
+      method: 'POST',
+      body: formData,
+  });
+}
+
+
+async function handleRequest(request) {
+    if (request.method === 'POST') {
+        try {
+            const update = await request.json();
+            if (update.message) {
+                await handleMessage(update.message);
+            } else if (update.callback_query) {
+                await handleCallbackQuery(update.callback_query);
+            }
+            return new Response('OK');
+        } catch (error) {
+            console.error(error);
+            return new Response('Error processing update', { status: 500 });
+        }
+    } else if (request.method === 'GET') {
+        // Simple health check for monitoring
+        return new Response('Bot is running');
+    }
+
+    return new Response('Method not allowed', { status: 405 });
+}
+
+addEventListener('fetch', event => {
+    event.respondWith(handleRequest(event.request));
+});
