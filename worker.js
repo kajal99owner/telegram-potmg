@@ -72,7 +72,7 @@ async function handleCommand(update) {
                     media: photoUrl,
                     caption: `Ping 🔥!\n\n${latency} ms`
                 }
-            });
+            })
         }
     } catch (error) {
         console.error('Error handling command:', error);
