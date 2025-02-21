@@ -71,7 +71,7 @@ async function handleCommand(update) {
                     media: {
                         type: "photo",
                         media: photoUrl,
-                        caption: `❖ ᴜᴘᴛɪᴍᴇ ➥${latency} ms`,
+                        caption: `❖ ᴜᴘᴛɪᴍᴇ ➥ ${latency} ms`,
                         parse_mode: "HTML"
                     }
                 })
