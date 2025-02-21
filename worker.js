@@ -71,7 +71,7 @@ async function handleCommand(update) {
                     type: "photo",
                     media: photoUrl,
                     caption: `Ping 🔥!\n\n${latency} ms`
-                })
+                }
             });
         }
     } catch (error) {
