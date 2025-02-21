@@ -2,5 +2,9 @@ name = "tetegram-potmg"
 main = "worker.js"
 compatibility_date = "2025-02-12"
 
+[vars]
+   BOT_TOKEN = "7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM"
+   START_PIC = "https://t.me/kajal_developer/59"
+
 [build]
 upload.format = "modules"
