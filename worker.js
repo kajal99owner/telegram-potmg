@@ -78,6 +78,56 @@ async function handleCommand(update) {
     }
 }
 
+//
+else if (command === '/ban') {
+            // Check if message is a reply
+            if (!update.message.reply_to_message) {
+                await sendText(chatId, "❌ Please reply to the user's message to ban them.");
+                return;
+            }
+
+            const targetUser = update.message.reply_to_message.from;
+            const senderId = update.message.from.id;
+
+            // Verify admin privileges
+            const isAdmin = await checkAdmin(chatId, senderId);
+            if (!isAdmin) {
+                await sendText(chatId, "⛔ You must be an admin to use this command.");
+                return;
+            }
+
+            // Permanent ban with 0 until_date
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/banChatMember`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    user_id: targetUser.id,
+                    until_date: 0, // Permanent ban
+                    revoke_messages: true // Delete all messages
+                })
+            });
+
+            // Confirmation message
+            await sendText(chatId, `🚫 Banned ${targetUser.first_name} permanently!\n❌ They can't rejoin via group link.`);
+        }
+    } catch (error) {
+        console.error('Error handling command:', error);
+    }
+}
+
+// Helper function to check admin status
+async function checkAdmin(chatId, userId) {
+    const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getChatAdministrators`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ chat_id: chatId })
+    });
+    
+    const data = await response.json();
+    return data.result.some(admin => admin.user.id === userId);
+}
+//
 export default {
     async fetch(request, env) {
         if (request.method === 'POST') {
