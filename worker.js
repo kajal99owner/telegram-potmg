@@ -46,7 +46,7 @@ async function handleUpdate(update) {
         }
         else if (text === '/hoto') {
             await sendPhotos(chatId);
-sendPhotos(chatId, user);
+sendPhotos(chatId);
 
         }
         return new Response('OK');
