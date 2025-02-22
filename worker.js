@@ -19,9 +19,6 @@ async function handleUpdate(update) {
             await deleteMessage(chatId, messageId);
             await sendCommandsMenu(chatId);
         }
-        if (data === '/close') {
-            await deleteMessage(chatId, messageId);
-        }
         return new Response('OK');
     }
 
@@ -39,9 +36,6 @@ async function handleUpdate(update) {
         }
         else if (text === '/about') {
             await sendAboutMessage(chatId, user);
-        }
-        else if (text === '/close') {
-            await deleteMessage(chatId, message.message_id);
         }
         return new Response('OK');
     }
