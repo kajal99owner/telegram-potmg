@@ -126,9 +126,8 @@ async function sendAboutMessage(chatId, user) {
 ‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/kingvj01'>ᴛᴇᴄʜ ᴠᴊ</a> 
 ‣ ʟɪʙʀᴀʀʏ : <a href=''></a> 
 ‣ ʟᴀɴɢᴜᴀɢᴇ : <a href='https://nodejs.org/en'>JS 💻</a> 
-‣ 🗒️ᴠᴇʀsɪᴏɴ  : <a href=''>v1.01.1</a> 
 ‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href='https://dash.cloudflare.com/'>ᴄʟᴏᴜᴅғʟᴀʀᴇ⚡</a> 
-‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : ᴠ [sᴛᴀʙʟᴇ]</b>
+‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : <code>v1.0 [sᴛᴀʙʟᴇ]<code>
     `;
 
     await fetch(`${BASE_URL}/sendPhoto`, {
