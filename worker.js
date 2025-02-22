@@ -77,8 +77,6 @@ async function handleCommand(update) {
         console.error('Error handling command:', error);
     }
 }
-
-//
 else if (command === '/ban') {
             // Check if message is a reply
             if (!update.message.reply_to_message) {
@@ -127,7 +125,7 @@ async function checkAdmin(chatId, userId) {
     const data = await response.json();
     return data.result.some(admin => admin.user.id === userId);
 }
-//
+
 export default {
     async fetch(request, env) {
         if (request.method === 'POST') {
