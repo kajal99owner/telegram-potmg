@@ -50,7 +50,7 @@ async function sendWelcomeMessage(chatId, user) {
         [{ text: "DEV", url: "https://t.me/Teleservices_Api" }]
     ];
 
-    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status:<code>Alive 🟢</code>\n\n💞 Dev: @LakshayDied`;
+    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: <code>Alive 🟢</code>\n\n💞 Dev: @LakshayDied`;
 
     await fetch(`${BASE_URL}/sendVideo`, {
         method: 'POST',
@@ -115,7 +115,7 @@ async function sendAboutMessage(chatId, user) {
     const buttons = [
         [
             { text: "Gateways", callback_data: "/black" },
-            { text: "Tools", callback_data: "/tools" }
+            { text: "Tools", callback_data: "/close" }
         ]
     ];
     const caption = `
@@ -142,6 +142,25 @@ async function sendAboutMessage(chatId, user) {
     });
 }
 
+//
+if (request.data === '/close') {
+    try {
+        const message_id = request.callback_query.message.message_id;
+        const chat_id = request.callback_query.message.chat.id;
+
+        await Api.deleteMessage({
+            chat_id: chat_id,
+            message_id: message_id
+        });
+
+        // Answer the callback query to remove loading state
+        await Api.answerCallbackQuery({
+            callback_query_id: request.callback_query.id
+        });
+    } catch (error) {
+        console.error('Error deleting message:', error);
+    }
+}
 //
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
