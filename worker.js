@@ -46,11 +46,11 @@ async function handleUpdate(update) {
 async function sendWelcomeMessage(chatId, user) {
     const videoUrl = "https://t.me/kajal_developer/57";
     const buttons = [
-        [{ text: "Commands", callback_data: "/Commands" }],
+        [{ text: "『MENU』", callback_data: "/Commands" }],
         [{ text: "DEV", url: "https://t.me/Teleservices_Api" }]
     ];
 
-    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @LakshayDied`;
+    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status:/b>  <code>Alive 🟢</code>\n\n💞 Dev: @LakshayDied`;
 
     await fetch(`${BASE_URL}/sendVideo`, {
         method: 'POST',
