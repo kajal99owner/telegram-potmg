@@ -121,11 +121,10 @@ async function sendAboutMessage(chatId, user) {
     const caption = `
 <b><blockquote>⍟───[ MY ᴅᴇᴛᴀɪʟꜱ ]───⍟</blockquote>
 
-
 ‣ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/${user.username}">${user.first_name}</a>
 ‣ ᴍʏ ʙᴇsᴛ ғʀɪᴇɴᴅ : <a href='tg://settings'>ᴛʜɪs ᴘᴇʀsᴏɴ</a> 
 ‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/sumit_developer'>☣️</a> 
-‣ ʟɪʙʀᴀʀʏ : <a href=https://nodejs.org/en'></a> 
+‣ ʟɪʙʀᴀʀʏ : <a href=https://nodejs.org/en'>💻</a> 
 ‣ ʟᴀɴɢᴜᴀɢᴇ : <a href='https://nodejs.org/en'>JS 💻</a> 
 ‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href='https://dash.cloudflare.com/'>ᴄʟᴏᴜᴅғʟᴀʀᴇ⚡</a> 
 <b>‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs :</b> <code>v1.0</code> [sᴛᴀʙʟᴇ]</b>
