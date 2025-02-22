@@ -1,4 +1,5 @@
 const TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; 
+const BASE_URL = `https://api.telegram.org/bot${TOKEN}`;
 const WEBHOOK = '/endpoint';
 const SECRET = 'ENV_BOT_SECRET';
 const FALLBACK_UPLOAD_URL = "http://telegraph-7at.pages.dev/upload";
