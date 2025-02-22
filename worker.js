@@ -112,6 +112,19 @@ async function deleteMessage(chatId, messageId) {
 async function sendAboutMessage(chatId, user) {
     const photoUrl =
 "https://t.me/kajal_developer/59";
+    const buttons = [
+        [
+            { text: "Gateways", callback_data: "/black" },
+            { text: "Tools", callback_data: "/tools" }
+        ],
+        [
+            { text: "Channel", url: "https://t.me/Teleservices_Api" },
+            { text: "DEV", url: "https://t.me/Teleservices_Bots" }
+        ],
+        [
+            { text: "◀️ Go Back", callback_data: "/black" }
+        ]
+    ];
     const caption = `
 <b><blockquote>⍟───[ MY ᴅᴇᴛᴀɪʟꜱ ]───⍟</blockquote>
 
@@ -132,7 +145,8 @@ async function sendAboutMessage(chatId, user) {
             chat_id: chatId,
             photo: photoUrl,
             caption: caption,
-            parse_mode: 'HTML'
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buttons }
         })
     });
 }
