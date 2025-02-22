@@ -2,7 +2,7 @@ const TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
 const WEBHOOK = '/endpoint';
 const SECRET = 'ENV_BOT_SECRET';
 const FALLBACK_UPLOAD_URL = "http://telegraph-7at.pages.dev/upload";
-const DIRECT_UPLOAD_URL = "http://telegraph-7at.pages.dev/?url=";
+const DIRECT_UPLOAD_URL = "https://host.ashlynn-repo.workers.dev/?url=";
 const CHANNEL_LINK = "https://t.me/Ashlynn_Repository"; 
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TOKEN}/`;
 
@@ -42,7 +42,7 @@ async function onMessage(message) {
   const text = message.text;
 
   if (text === '/start') {
-    await sendStartMessage(chatId);
+    await sendStartMessage(chatId, user);
   } else if (text === '/about') {
     await sendAboutMessage(chatId);
   } else if (text === '/admin') {
@@ -57,10 +57,29 @@ async function onMessage(message) {
 }
 
 // Send Start message
-async function sendStartMessage(chatId) {
-  const text = "Welcome! Send me a photo or video under 20 MB, and I'll provide a download link.";
-  await sendPlainText(chatId, text);
+async function sendStartMessage(chatId, user) {
+    const videoUrl = "https://t.me/kajal_developer/57";
+    const buttons = [
+        [{ text: "menu", callback_data: "/Commands" }],
+        [{ text: "DEV", url: "https://t.me/pornhub_Developer" }]
+    ];
+
+    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhub_Developer`;
+
+    await fetch(`${BASE_URL}/sendVideo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            video: videoUrl,
+            caption: caption,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buttons },
+            protect_content: true
+        })
+    });
 }
+//
 
 // Send About message
 async function sendAboutMessage(chatId) {
