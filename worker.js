@@ -60,7 +60,7 @@ async function sendWelcomeMessage(chatId, user) {
             video: videoUrl,
             caption: caption,
             parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons }
+            reply_markup: { inline_keyboard: buttons },
             protect_content: true
         })
     });
