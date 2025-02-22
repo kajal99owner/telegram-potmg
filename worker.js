@@ -61,6 +61,7 @@ async function sendWelcomeMessage(chatId, user) {
             caption: caption,
             parse_mode: 'HTML',
             reply_markup: { inline_keyboard: buttons }
+            protect_content: true
         })
     });
 }
@@ -109,6 +110,8 @@ async function deleteMessage(chatId, messageId) {
 
 // about
 async function sendAboutMessage(chatId, user) {
+    const photoUrl =
+"https://t.me/kajal_developer/59";
     const aboutMessage = `
 <b><blockquote>⍟───[ MY ᴅᴇᴛᴀɪʟꜱ ]───⍟</blockquote>
 
@@ -122,12 +125,13 @@ async function sendAboutMessage(chatId, user) {
 ‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : ᴠ [sᴛᴀʙʟᴇ]</b>
     `;
 
-    await fetch(`${BASE_URL}/sendMessage`, {
+    await fetch(`${BASE_URL}/sendPhoto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             chat_id: chatId,
-            text: aboutMessage,
+            photo: photoUrl,
+            caption: caption,
             parse_mode: 'HTML'
         })
     });
