@@ -1,216 +1,141 @@
-const TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; 
+const TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
 const BASE_URL = `https://api.telegram.org/bot${TOKEN}`;
 const WEBHOOK = '/endpoint';
-const SECRET = 'ENV_BOT_SECRET';
-const FALLBACK_UPLOAD_URL = "http://telegraph-7at.pages.dev/upload";
-const DIRECT_UPLOAD_URL = "https://host.ashlynn-repo.workers.dev/?url=";
-const CHANNEL_LINK = "https://t.me/Ashlynn_Repository"; 
-const TELEGRAM_API_URL = `https://api.telegram.org/bot${TOKEN}/`;
 
 addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.pathname === WEBHOOK) {
     event.respondWith(handleWebhook(event));
   } else if (url.pathname === '/registerWebhook') {
-    event.respondWith(registerWebhook(event, url, WEBHOOK, SECRET));
+    event.respondWith(registerWebhook(event));
   } else if (url.pathname === '/unRegisterWebhook') {
     event.respondWith(unRegisterWebhook(event));
   } else {
-    event.respondWith(new Response('No handler for this request'));
+    event.respondWith(new Response('Not found', { status: 404 }));
   }
 });
 
-// Handle requests to WEBHOOK
 async function handleWebhook(event) {
-  if (event.request.headers.get('X-Telegram-Bot-Api-Secret-Token') !== SECRET) {
+  const request = event.request;
+  const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
+  
+  // Validate secret token from environment variables
+  if (secret !== SECRET) {
     return new Response('Unauthorized', { status: 403 });
   }
 
-  const update = await event.request.json();
-  event.waitUntil(onUpdate(update));
-  return new Response('Ok');
-}
-
-async function onUpdate(update) {
-  if (update.message) {
-    await onMessage(update.message);
-  }
-}
-
-// Handle incoming Message
-async function onMessage(message) {
-  const chatId = message.chat.id;
-  const text = message.text;
-
-  if (text === '/start') {
-    await sendStartMessage(chatId, user);
-  } else if (text === '/about') {
-    await sendAboutMessage(chatId);
-  } else if (text === '/admin') {
-    await sendAdminMessage(chatId);
-  } else if (message.photo || message.video) {
-    await handleMediaMessage(message, chatId);
-  } else if (message.document || message.audio) {
-    await sendPlainText(chatId, "Please send only a photo or video under 20 MB.");
-  } else {
-    await sendPlainText(chatId, "Send a photo or video to receive a download link.");
-  }
-}
-
-// Send Start message
-async function sendStartMessage(chatId, user) {
-    const videoUrl = "https://t.me/kajal_developer/57";
-    const buttons = [
-        [{ text: "menu", callback_data: "/Commands" }],
-        [{ text: "DEV", url: "https://t.me/pornhub_Developer" }]
-    ];
-
-    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @pornhub_Developer`;
-
-    await fetch(`${BASE_URL}/sendVideo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            video: videoUrl,
-            caption: caption,
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons },
-            protect_content: true
-        })
-    });
-}
-//
-
-// Send About message
-async function sendAboutMessage(chatId) {
-  const text = "This bot assists with uploading media files quickly and provides direct download links.";
-  await sendPlainText(chatId, text);
-}
-
-// Send Admin message with inline button to join the channel
-async function sendAdminMessage(chatId) {
-  const text = "Join our Telegram channel for updates!";
-  const buttons = [[{ text: "Join Channel", url: CHANNEL_LINK }]];
-  await sendMessageWithButtons(chatId, text, buttons);
-}
-
-async function handleMediaMessage(message, chatId) {
-  const fileData = message.photo ? message.photo.slice(-1)[0] : message.video;
-  if (!fileData) {
-    await sendPlainText(chatId, "Please send only a photo or video under 20 MB.");
-    return;
-  }
-
   try {
-    const fileUrl = await getTelegramFileUrl(fileData.file_id);
-    if (!fileUrl) throw new Error("Could not retrieve file URL.");
+    const update = await request.json();
+    if (update.message && update.message.text) {
+      const chatId = update.message.chat.id;
+      const messageId = update.message.message_id;
+      const command = update.message.text.split(' ')[0];
 
-    let uploadResult;
-    let uploadedUrl;
-    if (fileData.file_size && fileData.file_size <= 20 * 1024 * 1024) { // 20 MB limit
-      uploadResult = await directUpload(fileUrl);
-    } else {
-      uploadResult = await uploadToApi(fileUrl);
+      if (command === '/start') {
+        // Delete the /start message
+        await fetch(`${BASE_URL}/deleteMessage`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId
+          })
+        });
+
+        // Send welcome message
+        await sendWelcomeMessage(chatId);
+      }
+      else if (command === '/ping') {
+        await handlePingCommand(chatId);
+      }
     }
-
-    uploadedUrl = uploadResult.uploadedUrl || uploadResult.data || null;
-    if (!uploadedUrl) throw new Error("Upload response did not contain a URL.");
-
-    const responseMessage = `⬇️ Download: <a href="${uploadedUrl}">Click here</a>`;
-    const buttons = [[{ text: "View Upload", url: uploadedUrl }]];
-    await sendMessageWithButtons(chatId, responseMessage, buttons);
+    return new Response('OK');
   } catch (error) {
-    await sendPlainText(chatId, `Upload failed: ${error.message}`);
+    console.error('Error:', error);
+    return new Response('Server Error', { status: 500 });
   }
 }
 
-// Get the file URL from Telegram
-async function getTelegramFileUrl(fileId) {
-  const fileDataResponse = await fetch(apiUrl('getFile', { file_id: fileId }));
-  const fileData = await fileDataResponse.json();
+async function sendWelcomeMessage(chatId) {
+  const photoUrl = "https://t.me/kajal_developer/59";
+  const buttons = [
+    [{ text: "『MENU』", callback_data: "/2" }],
+    [
+      { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" },
+      { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" }
+    ]
+  ];
 
-  if (!fileData.ok) throw new Error("Failed to retrieve file information from Telegram");
-  return `https://api.telegram.org/file/bot${TOKEN}/${fileData.result.file_path}`;
-}
-
-// Directly upload to the custom API using GET
-async function directUpload(fileUrl) {
-  const directUploadResponse = await fetch(`${DIRECT_UPLOAD_URL}${encodeURIComponent(fileUrl)}`);
-  if (!directUploadResponse.ok) {
-    throw new Error(`Direct upload failed with status: ${directUploadResponse.status}`);
-  }
-  return await directUploadResponse.json();
-}
-
-// Fallback Upload using FormData
-async function uploadToApi(fileUrl) {
-  const mediaResponse = await fetch(fileUrl);
-  if (!mediaResponse.ok) throw new Error("Failed to fetch file from Telegram");
-
-  const mediaBlob = await mediaResponse.blob();
-  const formData = new FormData();
-  formData.append("file", mediaBlob, "uploaded_file");
-
-  const uploadResponse = await fetch(FALLBACK_UPLOAD_URL, {
-    method: "POST",
-    body: formData
+  return fetch(`${BASE_URL}/sendPhoto`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      chat_id: chatId,
+      photo: photoUrl,
+      caption: `<b>👋 Welcome</b>\n\n⛔ ᴍᴜꜱᴛ ᴊᴏɪɴ ᴏᴜʀ ᴀʟʟ ᴄʜᴀɴɴᴇʟꜱ`,
+      parse_mode: "HTML",
+      reply_markup: { inline_keyboard: buttons }
+    })
   });
-
-  if (!uploadResponse.ok) {
-    const errorMsg = await uploadResponse.text();
-    throw new Error(`Upload failed: ${errorMsg}`);
-  }
-
-  return await uploadResponse.json();
 }
 
-// Send plain text message
-async function sendPlainText(chatId, text) {
-  const payload = {
-    chat_id: chatId,
-    text: text
-  };
-  return await fetch(`${TELEGRAM_API_URL}sendMessage`, {
+async function handlePingCommand(chatId) {
+  const startTime = Date.now();
+  
+  // Send initial ping message
+  const pingResponse = await fetch(`${BASE_URL}/sendMessage`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).then(response => response.json());
-}
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: "🔄 Pinging...."
+    })
+  });
+  
+  const pingResult = await pingResponse.json();
+  const endTime = Date.now();
+  const latency = endTime - startTime;
 
-// Send message with inline buttons
-async function sendMessageWithButtons(chatId, text, buttons) {
-  const payload = {
-    chat_id: chatId,
-    text: text,
-    reply_markup: { inline_keyboard: buttons },
-    parse_mode: 'HTML'
-  };
-  return await fetch(`${TELEGRAM_API_URL}sendMessage`, {
+  // Cloudflare Workers doesn't provide system metrics
+  const statusMessage = `
+<b>🏓 ᴩᴏɴɢ : ${latency}ᴍs</b>
+
+↬ ᴜᴩᴛɪᴍᴇ : Not available in Workers
+↬ ʀᴀᴍ : Not available in Workers
+↬ ᴄᴩᴜ : Not available in Workers
+↬ ᴅɪsᴋ : Not available in Workers
+  `.trim();
+
+  return fetch(`${BASE_URL}/editMessageText`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).then(response => response.json());
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: pingResult.result.message_id,
+      text: statusMessage,
+      parse_mode: "HTML"
+    })
+  });
 }
 
-// Set webhook to this worker's URL
-async function registerWebhook(event, requestUrl, suffix, secret) {
-  const webhookUrl = `${requestUrl.protocol}//${requestUrl.hostname}${suffix}`;
-  const r = await (await fetch(apiUrl('setWebhook', { url: webhookUrl, secret_token: secret }))).json();
-  return new Response('ok' in r && r.ok ? 'Ok' : JSON.stringify(r, null, 2));
+async function registerWebhook(event) {
+  const webhookUrl = `${new URL(event.request.url).origin}${WEBHOOK}`;
+  const response = await fetch(`${BASE_URL}/setWebhook`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      url: webhookUrl,
+      secret_token: SECRET
+    })
+  });
+  return new Response(await response.text());
 }
 
-// Remove webhook
 async function unRegisterWebhook(event) {
-  const r = await (await fetch(apiUrl('setWebhook', { url: '' }))).json();
-  return new Response('ok' in r && r.ok ? 'Ok' : JSON.stringify(r, null, 2));
-}
-
-// Return URL to Telegram API with optional parameters
-function apiUrl(methodName, params = null) {
-  let query = '';
-  if (params) {
-    query = '?' + new URLSearchParams(params).toString();
-  }
-  return `https://api.telegram.org/bot${TOKEN}/${methodName}${query}`;
+  const response = await fetch(`${BASE_URL}/deleteWebhook`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ drop_pending_updates: true })
+  });
+  return new Response(await response.text());
 }
