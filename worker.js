@@ -116,13 +116,6 @@ async function sendAboutMessage(chatId, user) {
         [
             { text: "Gateways", callback_data: "/black" },
             { text: "Tools", callback_data: "/tools" }
-        ],
-        [
-            { text: "Channel", url: "https://t.me/Teleservices_Api" },
-            { text: "DEV", url: "https://t.me/Teleservices_Bots" }
-        ],
-        [
-            { text: "◀️ Go Back", callback_data: "/black" }
         ]
     ];
     const caption = `
