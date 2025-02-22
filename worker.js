@@ -1,119 +1,196 @@
-const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; // Store in Cloudflare Secrets
+const TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM'; 
+const WEBHOOK = '/endpoint';
+const SECRET = 'ENV_BOT_SECRET';
+const FALLBACK_UPLOAD_URL = "http://telegraph-7at.pages.dev/upload";
+const DIRECT_UPLOAD_URL = "http://telegraph-7at.pages.dev/?url=";
+const CHANNEL_LINK = "https://t.me/Ashlynn_Repository"; 
+const TELEGRAM_API_URL = `https://api.telegram.org/bot${TOKEN}/`;
 
-async function handleCommand(update) {
-    const chatId = update.message.chat.id;
-    const messageId = update.message.message_id;
-    const command = update.message.text.split(' ')[0];
-    const userId = update.message.from.id;
+addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (url.pathname === WEBHOOK) {
+    event.respondWith(handleWebhook(event));
+  } else if (url.pathname === '/registerWebhook') {
+    event.respondWith(registerWebhook(event, url, WEBHOOK, SECRET));
+  } else if (url.pathname === '/unRegisterWebhook') {
+    event.respondWith(unRegisterWebhook(event));
+  } else {
+    event.respondWith(new Response('No handler for this request'));
+  }
+});
 
-    try {
-        if (command === '/start') {
-            // Delete the original /start message
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    message_id: messageId
-                })
-            });
+// Handle requests to WEBHOOK
+async function handleWebhook(event) {
+  if (event.request.headers.get('X-Telegram-Bot-Api-Secret-Token') !== SECRET) {
+    return new Response('Unauthorized', { status: 403 });
+  }
 
-            // Prepare welcome message
-            const photoUrl = "https://t.me/kajal_developer/59";
-            const buttons = [
-                [
-                    { text: "『MENU』", callback_data: "/2" }
-                ],
-                [
-                    { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" },
-                    { text: "Cʜᴀɴɴᴇʟ", url: "https://t.me/Teleservices_Api" }
-                ]
-            ];
-
-            // Send welcome message
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    photo: photoUrl,
-                    caption: `<b>👋 Welcome ${update.message.from.first_name}</b>\n\n⛔ ᴍᴜꜱᴛ ᴊᴏɪɴ ᴏᴜʀ ᴀʟʟ ᴄʜᴀɴɴᴇʟꜱ`,
-                    parse_mode: "HTML",
-                    reply_markup: { inline_keyboard: buttons }
-                })
-            });
-        }
-        else if (command === '/ping') {
-            const startTime = Date.now();
-            
-            // Send initial ping message
-            const pingMessage = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    text: "🔄 Pinging...."
-                })
-            });
-            
-            const pingResult = await pingMessage.json();
-            const endTime = Date.now();
-            const latency = endTime - startTime;
-
-            const uptime = process.uptime();
-            const ramUsage = process.ramUsage();
-            const cpuUsage = process.cpuUsage();
-            const diskUsage = process.diskUsage();
-
-            // Format time
-            const formatUptime = (seconds) => {
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                const secs = Math.floor(seconds % 60);
-                return `${hours}h:${minutes}m:${secs}s`;
-            };
-
-            // Build status message
-            const photoUrl = "https://t.me/kajal_developer/59";
-            const caption = `
-<b>🏓 ᴩᴏɴɢ : ${latency}ᴍs</b>
-
-↬ ᴜᴩᴛɪᴍᴇ : ${formatUptime(uptime)}
-↬ ʀᴀᴍ : ${ramUsage}%
-↬ ᴄᴩᴜ : ${cpuUsage}%
-↬ ᴅɪsᴋ : ${diskUsage}%
-            `.trim();
-
-            // Edit message with status
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageMedia`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    message_id: pingResult.result.message_id,
-                    media: {
-                        type: "photo",
-                        media: photoUrl,
-                        caption: caption,
-                        parse_mode: "HTML"
-                    }
-                })
-            });
-        }
-    } catch (error) {
-        console.error('Error handling command:', error);
-    }
+  const update = await event.request.json();
+  event.waitUntil(onUpdate(update));
+  return new Response('Ok');
 }
 
-export default {
-    async fetch(request, env) {
-        if (request.method === 'POST') {
-            const update = await request.json();
-            if (update.message && update.message.text) {
-                await handleCommand(update);
-            }
-            return new Response('OK');
-        }
-        return new Response('Method not allowed', { status: 405 });
+async function onUpdate(update) {
+  if (update.message) {
+    await onMessage(update.message);
+  }
+}
+
+// Handle incoming Message
+async function onMessage(message) {
+  const chatId = message.chat.id;
+  const text = message.text;
+
+  if (text === '/start') {
+    await sendStartMessage(chatId);
+  } else if (text === '/about') {
+    await sendAboutMessage(chatId);
+  } else if (text === '/admin') {
+    await sendAdminMessage(chatId);
+  } else if (message.photo || message.video) {
+    await handleMediaMessage(message, chatId);
+  } else if (message.document || message.audio) {
+    await sendPlainText(chatId, "Please send only a photo or video under 20 MB.");
+  } else {
+    await sendPlainText(chatId, "Send a photo or video to receive a download link.");
+  }
+}
+
+// Send Start message
+async function sendStartMessage(chatId) {
+  const text = "Welcome! Send me a photo or video under 20 MB, and I'll provide a download link.";
+  await sendPlainText(chatId, text);
+}
+
+// Send About message
+async function sendAboutMessage(chatId) {
+  const text = "This bot assists with uploading media files quickly and provides direct download links.";
+  await sendPlainText(chatId, text);
+}
+
+// Send Admin message with inline button to join the channel
+async function sendAdminMessage(chatId) {
+  const text = "Join our Telegram channel for updates!";
+  const buttons = [[{ text: "Join Channel", url: CHANNEL_LINK }]];
+  await sendMessageWithButtons(chatId, text, buttons);
+}
+
+async function handleMediaMessage(message, chatId) {
+  const fileData = message.photo ? message.photo.slice(-1)[0] : message.video;
+  if (!fileData) {
+    await sendPlainText(chatId, "Please send only a photo or video under 20 MB.");
+    return;
+  }
+
+  try {
+    const fileUrl = await getTelegramFileUrl(fileData.file_id);
+    if (!fileUrl) throw new Error("Could not retrieve file URL.");
+
+    let uploadResult;
+    let uploadedUrl;
+    if (fileData.file_size && fileData.file_size <= 20 * 1024 * 1024) { // 20 MB limit
+      uploadResult = await directUpload(fileUrl);
+    } else {
+      uploadResult = await uploadToApi(fileUrl);
     }
-};
+
+    uploadedUrl = uploadResult.uploadedUrl || uploadResult.data || null;
+    if (!uploadedUrl) throw new Error("Upload response did not contain a URL.");
+
+    const responseMessage = `⬇️ Download: <a href="${uploadedUrl}">Click here</a>`;
+    const buttons = [[{ text: "View Upload", url: uploadedUrl }]];
+    await sendMessageWithButtons(chatId, responseMessage, buttons);
+  } catch (error) {
+    await sendPlainText(chatId, `Upload failed: ${error.message}`);
+  }
+}
+
+// Get the file URL from Telegram
+async function getTelegramFileUrl(fileId) {
+  const fileDataResponse = await fetch(apiUrl('getFile', { file_id: fileId }));
+  const fileData = await fileDataResponse.json();
+
+  if (!fileData.ok) throw new Error("Failed to retrieve file information from Telegram");
+  return `https://api.telegram.org/file/bot${TOKEN}/${fileData.result.file_path}`;
+}
+
+// Directly upload to the custom API using GET
+async function directUpload(fileUrl) {
+  const directUploadResponse = await fetch(`${DIRECT_UPLOAD_URL}${encodeURIComponent(fileUrl)}`);
+  if (!directUploadResponse.ok) {
+    throw new Error(`Direct upload failed with status: ${directUploadResponse.status}`);
+  }
+  return await directUploadResponse.json();
+}
+
+// Fallback Upload using FormData
+async function uploadToApi(fileUrl) {
+  const mediaResponse = await fetch(fileUrl);
+  if (!mediaResponse.ok) throw new Error("Failed to fetch file from Telegram");
+
+  const mediaBlob = await mediaResponse.blob();
+  const formData = new FormData();
+  formData.append("file", mediaBlob, "uploaded_file");
+
+  const uploadResponse = await fetch(FALLBACK_UPLOAD_URL, {
+    method: "POST",
+    body: formData
+  });
+
+  if (!uploadResponse.ok) {
+    const errorMsg = await uploadResponse.text();
+    throw new Error(`Upload failed: ${errorMsg}`);
+  }
+
+  return await uploadResponse.json();
+}
+
+// Send plain text message
+async function sendPlainText(chatId, text) {
+  const payload = {
+    chat_id: chatId,
+    text: text
+  };
+  return await fetch(`${TELEGRAM_API_URL}sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(response => response.json());
+}
+
+// Send message with inline buttons
+async function sendMessageWithButtons(chatId, text, buttons) {
+  const payload = {
+    chat_id: chatId,
+    text: text,
+    reply_markup: { inline_keyboard: buttons },
+    parse_mode: 'HTML'
+  };
+  return await fetch(`${TELEGRAM_API_URL}sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(response => response.json());
+}
+
+// Set webhook to this worker's URL
+async function registerWebhook(event, requestUrl, suffix, secret) {
+  const webhookUrl = `${requestUrl.protocol}//${requestUrl.hostname}${suffix}`;
+  const r = await (await fetch(apiUrl('setWebhook', { url: webhookUrl, secret_token: secret }))).json();
+  return new Response('ok' in r && r.ok ? 'Ok' : JSON.stringify(r, null, 2));
+}
+
+// Remove webhook
+async function unRegisterWebhook(event) {
+  const r = await (await fetch(apiUrl('setWebhook', { url: '' }))).json();
+  return new Response('ok' in r && r.ok ? 'Ok' : JSON.stringify(r, null, 2));
+}
+
+// Return URL to Telegram API with optional parameters
+function apiUrl(methodName, params = null) {
+  let query = '';
+  if (params) {
+    query = '?' + new URLSearchParams(params).toString();
+  }
+  return `https://api.telegram.org/bot${TOKEN}/${methodName}${query}`;
+}
