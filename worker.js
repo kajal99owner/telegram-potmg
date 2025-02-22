@@ -143,24 +143,7 @@ async function sendAboutMessage(chatId, user) {
 }
 
 //
-if (request.data === '/close') {
-    try {
-        const message_id = request.callback_query.message.message_id;
-        const chat_id = request.callback_query.message.chat.id;
 
-        await Api.deleteMessage({
-            chat_id: chat_id,
-            message_id: message_id
-        });
-
-        // Answer the callback query to remove loading state
-        await Api.answerCallbackQuery({
-            callback_query_id: request.callback_query.id
-        });
-    } catch (error) {
-        console.error('Error deleting message:', error);
-    }
-}
 //
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
