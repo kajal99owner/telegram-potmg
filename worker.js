@@ -1,150 +1,144 @@
-const TELEGRAM_TOKEN = '7286429810:AAHBzO7SFy6AjYv8avTRKWQg53CJpD2KEbM';
-const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+// index.js (Cloudflare Worker)
+const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinterest Media Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(120deg, #f093fb 0%, #f5576c 100%);
+        }
+        .card-blur {
+            backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.75);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <div class="container mx-auto px-4 py-16">
+        <div class="max-w-2xl mx-auto card-blur rounded-2xl shadow-xl p-8">
+            <h1 class="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Pinterest Media Downloader
+            </h1>
+            
+            <div class="space-y-6">
+                <input 
+                    type="text" 
+                    id="urlInput" 
+                    placeholder="Enter Pinterest URL" 
+                    class="w-full px-4 py-3 rounded-lg border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
+                >
+                
+                <button 
+                    onclick="downloadMedia()" 
+                    class="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-transform transform hover:scale-105 active:scale-95"
+                >
+                    Download Now
+                </button>
+                
+                <div id="result" class="mt-6 space-y-4 hidden">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-100 rounded-xl overflow-hidden">
+                        <img id="previewImage" class="object-cover w-full h-full" alt="Preview">
+                    </div>
+                    <a id="downloadBtn" class="inline-block w-full px-6 py-3 text-center bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-transform transform hover:scale-105">
+                        Download HD Quality
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
-async function handleRequest(request) {
-    if (request.method === 'POST') {
-        const update = await request.json();
-        return handleUpdate(update);
-    }
-    return new Response('OK');
-}
+    <script>
+        async function downloadMedia() {
+            const url = document.getElementById('urlInput').value;
+            const resultDiv = document.getElementById('result');
+            const previewImage = document.getElementById('previewImage');
+            const downloadBtn = document.getElementById('downloadBtn');
 
-async function handleUpdate(update) {
-    if (update.callback_query) {
-        const data = update.callback_query.data;
-        const chatId = update.callback_query.message.chat.id;
-        const messageId = update.callback_query.message.message_id;
+            if (!url) {
+                alert('Please enter a Pinterest URL');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/download?url=' + encodeURIComponent(url));
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                previewImage.src = data.mediaUrl;
+                downloadBtn.href = data.mediaUrl;
+                resultDiv.classList.remove('hidden');
+                previewImage.onload = () => {
+                    previewImage.classList.remove('opacity-0');
+                };
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
+`;
+
+async function handleMediaRequest(url) {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
         
-        if (data === '/Commands') {
-            await deleteMessage(chatId, messageId);
-            await sendCommandsMenu(chatId);
-        }
-        return new Response('OK');
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Extract media URL from meta tags
+        const metaImage = doc.querySelector('meta[property="og:image"]') || 
+                          doc.querySelector('meta[property="twitter:image:src"]');
+        
+        // For video content
+        const metaVideo = doc.querySelector('meta[property="og:video"]') || 
+                         doc.querySelector('meta[property="twitter:player:stream"]');
+
+        const mediaUrl = metaVideo ? metaVideo.content : metaImage.content;
+
+        // Handle Pinterest CDN redirects
+        const finalResponse = await fetch(mediaUrl);
+        const finalUrl = finalResponse.url;
+
+        return new Response(JSON.stringify({
+            mediaUrl: finalUrl,
+            type: metaVideo ? 'video' : 'image'
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({
+            error: 'Failed to fetch media. Make sure the URL is valid.'
+        }), { 
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
+}
 
-    if (update.message) {
-        const text = update.message.text;
-        const chatId = update.message.chat.id;
-        const user = update.message.from;
-
-        if (text === '/start') {
-            await sendWelcomeMessage(chatId, user);
+export default {
+    async fetch(request, env) {
+        const url = new URL(request.url);
+        
+        if (url.pathname === '/api/download') {
+            const pinterestUrl = url.searchParams.get('url');
+            return handleMediaRequest(pinterestUrl);
         }
-        else if (text === '/Commands') {
-            await deleteMessage(chatId, update.message.message_id);
-            await sendCommandsMenu(chatId);
-        }
-        else if (text === '/about') {
-            await sendAboutMessage(chatId, user);
-        }
-        return new Response('OK');
+        
+        return new Response(htmlContent, {
+            headers: { 'Content-Type': 'text/html' }
+        });
     }
-
-    return new Response('OK');
-}
-
-async function sendWelcomeMessage(chatId, user) {
-    const videoUrl = "https://t.me/kajal_developer/57";
-    const buttons = [
-        [{ text: "『MENU』", callback_data: "/Commands" }],
-        [{ text: "DEV", url: "https://t.me/Teleservices_Api" }]
-    ];
-
-    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: <code>Alive 🟢</code>\n\n💞 Dev: @LakshayDied`;
-
-    await fetch(`${BASE_URL}/sendVideo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            video: videoUrl,
-            caption: caption,
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons },
-            protect_content: true
-        })
-    });
-}
-
-async function sendCommandsMenu(chatId) {
-    const videoUrl = "https://t.me/kajal_developer/57"; 
-    const buttons = [
-        [
-            { text: "Gateways", callback_data: "/black" },
-            { text: "Tools", callback_data: "/tools" }
-        ],
-        [
-            { text: "Channel", url: "https://t.me/Teleservices_Api" },
-            { text: "DEV", url: "https://t.me/Teleservices_Bots" }
-        ],
-        [
-            { text: "◀️ Go Back", callback_data: "/black" }
-        ]
-    ];
-
-    const caption = `<b>[𖤐] XS developer :</b>\n\n<b>[ϟ] Current Gateways And Tools :</b>\n\n<b>[ᛟ] Charge - 0</b>\n<b>[ᛟ] Auth - 0</b>\n<b>[ᛟ] Tools - 2</b>`;
-
-    await fetch(`${BASE_URL}/sendVideo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            video: videoUrl,
-            caption: caption,
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons }
-        })
-    });
-}
-
-async function deleteMessage(chatId, messageId) {
-    await fetch(`${BASE_URL}/deleteMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId
-        })
-    });
-}
-
-// about
-async function sendAboutMessage(chatId, user) {
-    const photoUrl =
-"https://t.me/kajal_developer/59";
-    const buttons = [
-        [
-            { text: "Gateways", callback_data: "/black" },
-            { text: "Tools", callback_data: "/close" }
-        ]
-    ];
-    const caption = `
-<b><blockquote>⍟───[ MY ᴅᴇᴛᴀɪʟꜱ ]───⍟</blockquote>
-
-‣ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/${user.username}">${user.first_name}</a>
-‣ ᴍʏ ʙᴇsᴛ ғʀɪᴇɴᴅ : <a href='tg://settings'>ᴛʜɪs ᴘᴇʀsᴏɴ</a> 
-‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/sumit_developer'>☣️</a> 
-‣ ʟɪʙʀᴀʀʏ : <a href='https://nodejs.org/en'>💻</a> 
-‣ ʟᴀɴɢᴜᴀɢᴇ : <a href='https://nodejs.org/en'>JS 💻</a>
-‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href='https://dash.cloudflare.com/'>ᴄʟᴏᴜᴅғʟᴀʀᴇ⚡</a> 
-‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs :</b> <code>v1.0</code> [sᴛᴀʙʟᴇ]`;
-
-    await fetch(`${BASE_URL}/sendPhoto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            photo: photoUrl,
-            caption: caption,
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons }
-        })
-    });
-}
-
-//
-
-//
-addEventListener('fetch', event => {
-    event.respondWith(handleRequest(event.request));
-});
+};
