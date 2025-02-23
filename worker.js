@@ -1,4 +1,5 @@
 // index.js (Cloudflare Worker)
+
 const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -8,47 +9,95 @@ const htmlContent = `
     <title>Pinterest Media Downloader</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .gradient-bg {
-            background: linear-gradient(120deg, #f093fb 0%, #f5576c 100%);
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
         }
-        .card-blur {
-            backdrop-filter: blur(16px) saturate(180%);
-            background-color: rgba(255, 255, 255, 0.75);
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
         }
-        .media-container {
-            transition: opacity 0.3s ease;
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #553c9a;
+            margin-bottom: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        input[type="text"]:focus {
+            border-color: #553c9a;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #553c9a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        button:hover {
+            background-color: #443280;
+             transform: translateY(-2px); /* Slight lift effect */
+        }
+
+        #result {
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        #previewImage {
+            max-width: 100%;
+            max-height: 400px;  /* Limit height for better display */
+            border-radius: 8px;
+            margin-bottom: 1rem;
+             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #downloadBtn {
+            display: inline-block; /* or block, depending on layout needs */
+            padding: 0.75rem 1.5rem;
+            background-color: #28a745;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        #downloadBtn:hover {
+            background-color: #218838;
         }
     </style>
 </head>
-<body class="gradient-bg min-h-screen">
-    <div class="container mx-auto px-4 py-16">
-        <div class="max-w-2xl mx-auto card-blur rounded-2xl shadow-xl p-8">
-            <h1 class="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Pinterest Media Downloader
-            </h1>
-            
-            <div class="space-y-6">
-                <input 
-                    type="text" 
-                    id="urlInput" 
-                    placeholder="Enter Pinterest URL" 
-                    class="w-full px-4 py-3 rounded-lg border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
-                >
-                
-                <button 
-                    onclick="downloadMedia()" 
-                    class="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-transform transform hover:scale-105 active:scale-95"
-                >
-                    Download Now
-                </button>
-                
-                <div id="result" class="mt-6 space-y-4 hidden">
-                    <div id="previewContainer" class="aspect-w-1 aspect-h-1 bg-gray-100 rounded-xl overflow-hidden"></div>
-                    <a id="downloadBtn" class="inline-block w-full px-6 py-3 text-center bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-transform transform hover:scale-105">
-                        Download HD Quality
-                    </a>
-                </div>
-            </div>
+<body>
+    <div class="container">
+        <h1>Pinterest Media Downloader</h1>
+        <input type="text" id="urlInput" placeholder="Enter Pinterest URL (https://in.pinterest.com/... or https://pin.it/...)">
+        <button onclick="downloadMedia()">Download Now</button>
+        <div id="result" class="hidden">
+            <img id="previewImage" alt="Preview">
+            <a id="downloadBtn" href="#" target="_blank" rel="noopener noreferrer">Download HD</a>
         </div>
     </div>
 
@@ -56,7 +105,7 @@ const htmlContent = `
         async function downloadMedia() {
             const url = document.getElementById('urlInput').value;
             const resultDiv = document.getElementById('result');
-            const previewContainer = document.getElementById('previewContainer');
+            const previewImage = document.getElementById('previewImage');
             const downloadBtn = document.getElementById('downloadBtn');
 
             if (!url) {
@@ -64,10 +113,15 @@ const htmlContent = `
                 return;
             }
 
+            // Show loading indicator (optional, but good UX)
+            resultDiv.classList.remove('hidden'); // Make sure result div is visible (even if empty)
+            previewImage.src = ""; // Clear previous image
+            downloadBtn.textContent = "Loading..."; // Change button text
+            downloadBtn.href = "#"; // Disable the link while loading
+            downloadBtn.style.pointerEvents = 'none'; // Prevent clicking while loading.
+
+
             try {
-                previewContainer.innerHTML = '<div class="media-container opacity-0">Loading...</div>';
-                resultDiv.classList.remove('hidden');
-                
                 const response = await fetch('/api/download?url=' + encodeURIComponent(url));
                 const data = await response.json();
 
@@ -75,29 +129,24 @@ const htmlContent = `
                     throw new Error(data.error);
                 }
 
-                previewContainer.innerHTML = '';
-                let mediaElement;
+                previewImage.src = data.mediaUrl;
+                downloadBtn.href = data.mediaUrl;
+                downloadBtn.textContent = "Download HD";
+                downloadBtn.style.pointerEvents = 'auto'; // Re-enable link
 
+                // Optional:  Handle image/video-specific display
                 if (data.type === 'video') {
-                    mediaElement = document.createElement('video');
-                    mediaElement.controls = true;
-                    mediaElement.className = 'object-cover w-full h-full';
-                } else {
-                    mediaElement = document.createElement('img');
-                    mediaElement.className = 'object-cover w-full h-full opacity-0';
-                    mediaElement.onload = () => {
-                        mediaElement.classList.add('opacity-100');
-                        mediaElement.classList.remove('opacity-0');
-                    };
+                     // If it's a video, consider using a <video> element instead
+                    previewImage.outerHTML = `<video id="previewImage" controls><source src="${data.mediaUrl}" type="video/mp4">Your browser does not support the video tag.</video>`;
                 }
 
-                mediaElement.src = data.mediaUrl;
-                previewContainer.appendChild(mediaElement);
-                downloadBtn.href = data.mediaUrl + '&download=true';
-                
                 resultDiv.classList.remove('hidden');
+
             } catch (error) {
                 alert('Error: ' + error.message);
+                 downloadBtn.textContent = "Download Now"; // Reset to original text on error
+                 downloadBtn.style.pointerEvents = 'auto'; // Re-enable click after error.
+
             }
         }
     </script>
@@ -105,99 +154,96 @@ const htmlContent = `
 </html>
 `;
 
-async function extractMediaUrl(html) {
-    // Updated regex patterns to match Pinterest's current HTML structure
-    const metaPatterns = {
-        video: [
-            /<meta\s+property="og:video:secure_url"\s+content="([^"]*)"/i,
-            /<meta\s+property="og:video"\s+content="([^"]*)"/i,
-            /<meta\s+property="twitter:player:stream"\s+content="([^"]*)"/i
-        ],
-        image: [
-            /<meta\s+property="og:image"\s+content="([^"]*)"/i,
-            /<meta\s+property="twitter:image:src"\s+content="([^"]*)"/i,
-            /<meta\s+name="pinterest:media"\s+content="([^"]*)"/i
-        ]
-    };
-
-    for (const regex of metaPatterns.video) {
-        const match = html.match(regex);
-        if (match) return { url: match[1], type: 'video' };
-    }
-
-    for (const regex of metaPatterns.image) {
-        const match = html.match(regex);
-        if (match) return { url: match[1], type: 'image' };
-    }
-
-    throw new Error('No media found in the page. Ensure the URL is a valid Pinterest post.');
-}
-
-async function handleMediaRequest(pinterestUrl, request) {
+async function handleMediaRequest(url) {
     try {
+        // URL Validation and Normalization
+        let pinterestUrl = url;
+        if (!pinterestUrl.startsWith("https://")) {
+            return new Response(JSON.stringify({ error: "Invalid URL.  Must start with https://" }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (pinterestUrl.startsWith("https://pin.it/")) {
+          // Follow redirects for short URLs.  Crucially, follow *all* redirects.
+          let res = await fetch(pinterestUrl, {redirect: "follow"});
+          pinterestUrl = res.url;
+        }
+
+        if (!pinterestUrl.startsWith("https://www.pinterest.com/") && !pinterestUrl.startsWith("https://in.pinterest.com/")) {
+            return new Response(JSON.stringify({ error: "Invalid Pinterest URL.  Must be a pinterest.com or in.pinterest.com link." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
+
+
         const response = await fetch(pinterestUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Referer': 'https://www.pinterest.com/'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         });
-        
+
         const html = await response.text();
-        const { url: mediaUrl, type } = await extractMediaUrl(html);
-        const finalResponse = await fetch(mediaUrl);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // More robust meta tag extraction, handling different cases.
+        let metaImage = doc.querySelector('meta[property="og:image"]');
+        let metaVideo = doc.querySelector('meta[property="og:video"]');
+
+        // Fallback to other meta tags if og:image/og:video are not found
+        if (!metaImage) {
+             metaImage = doc.querySelector('meta[name="twitter:image:src"]') || doc.querySelector('meta[name="pinterest:media"]');
+        }
+
+         if (!metaVideo) {
+           metaVideo = doc.querySelector('meta[property="twitter:player:stream"]');
+         }
+        
+        if (!metaImage && !metaVideo) {
+          return new Response(JSON.stringify({ error: "No media found on this Pinterest page." }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        let mediaUrl = metaVideo ? metaVideo.content : metaImage.content;
+
+        if (!mediaUrl) {
+            return new Response(JSON.stringify({ error: 'Could not extract media URL.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        }
+
+
+        // Handle potential relative URLs (rare, but good practice)
+        if (mediaUrl.startsWith("//")) {
+            mediaUrl = "https:" + mediaUrl;
+        } else if (mediaUrl.startsWith("/")) {
+            mediaUrl = new URL(mediaUrl, pinterestUrl).href; // Construct absolute URL
+        }
+
+        // Handle Pinterest CDN redirects (and any other redirects) reliably
+        const finalResponse = await fetch(mediaUrl, { redirect: "follow" }); // Follow *all* redirects
         const finalUrl = finalResponse.url;
 
-        return {
-            mediaUrl: `${new URL(request.url).origin}/api/proxy?url=${encodeURIComponent(finalUrl)}`,
-            type
-        };
+        return new Response(JSON.stringify({
+            mediaUrl: finalUrl,
+            type: metaVideo ? 'video' : 'image'
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
     } catch (error) {
-        return { error: error.message };
+        console.error("Error in handleMediaRequest:", error); // Log the full error for debugging
+        return new Response(JSON.stringify({
+            error: 'Failed to fetch media.  The URL may be invalid, or Pinterest may have changed its structure.'
+        }), {
+            status: 500, // Use 500 for internal server errors
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
-        
+
         if (url.pathname === '/api/download') {
             const pinterestUrl = url.searchParams.get('url');
-            if (!pinterestUrl || !pinterestUrl.includes('pinterest.com')) {
-                return new Response(JSON.stringify({ error: 'Invalid Pinterest URL' }), {
-                    status: 400,
-                    headers: { 'Content-Type': 'application/json' }
-                });
+            if (!pinterestUrl) {
+                return new Response(JSON.stringify({ error: "Missing 'url' parameter." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
-            const result = await handleMediaRequest(pinterestUrl, request);
-            return new Response(JSON.stringify(result), {
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                }
-            });
-        }
-
-        if (url.pathname === '/api/proxy') {
-            const mediaUrl = url.searchParams.get('url');
-            return fetch(mediaUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                    'Referer': 'https://www.pinterest.com/'
-                }
-            }).then(res => {
-                const headers = new Headers(res.headers);
-                headers.set('Access-Control-Allow-Origin', '*');
-                
-                if (url.searchParams.has('download')) {
-                    const ext = mediaUrl.includes('.mp4') ? 'mp4' : 'jpg';
-                    headers.set('Content-Disposition', `attachment; filename="pinterest-media.${ext}"`);
-                }
-
-                return new Response(res.body, {
-                    status: res.status,
-                    headers
-                });
-            });
+            return handleMediaRequest(pinterestUrl);
         }
 
         return new Response(htmlContent, {
