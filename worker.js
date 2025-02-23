@@ -15,6 +15,9 @@ const htmlContent = `
             backdrop-filter: blur(16px) saturate(180%);
             background-color: rgba(255, 255, 255, 0.75);
         }
+        .media-container {
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body class="gradient-bg min-h-screen">
@@ -40,9 +43,7 @@ const htmlContent = `
                 </button>
                 
                 <div id="result" class="mt-6 space-y-4 hidden">
-                    <div class="aspect-w-1 aspect-h-1 bg-gray-100 rounded-xl overflow-hidden">
-                        <img id="previewImage" class="object-cover w-full h-full" alt="Preview">
-                    </div>
+                    <div id="previewContainer" class="aspect-w-1 aspect-h-1 bg-gray-100 rounded-xl overflow-hidden"></div>
                     <a id="downloadBtn" class="inline-block w-full px-6 py-3 text-center bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-transform transform hover:scale-105">
                         Download HD Quality
                     </a>
@@ -55,7 +56,7 @@ const htmlContent = `
         async function downloadMedia() {
             const url = document.getElementById('urlInput').value;
             const resultDiv = document.getElementById('result');
-            const previewImage = document.getElementById('previewImage');
+            const previewContainer = document.getElementById('previewContainer');
             const downloadBtn = document.getElementById('downloadBtn');
 
             if (!url) {
@@ -64,6 +65,9 @@ const htmlContent = `
             }
 
             try {
+                previewContainer.innerHTML = '<div class="media-container opacity-0">Loading...</div>';
+                resultDiv.classList.remove('hidden');
+                
                 const response = await fetch('/api/download?url=' + encodeURIComponent(url));
                 const data = await response.json();
 
@@ -71,12 +75,27 @@ const htmlContent = `
                     throw new Error(data.error);
                 }
 
-                previewImage.src = data.mediaUrl;
-                downloadBtn.href = data.mediaUrl;
+                previewContainer.innerHTML = '';
+                let mediaElement;
+
+                if (data.type === 'video') {
+                    mediaElement = document.createElement('video');
+                    mediaElement.controls = true;
+                    mediaElement.className = 'object-cover w-full h-full';
+                } else {
+                    mediaElement = document.createElement('img');
+                    mediaElement.className = 'object-cover w-full h-full opacity-0';
+                    mediaElement.onload = () => {
+                        mediaElement.classList.add('opacity-100');
+                        mediaElement.classList.remove('opacity-0');
+                    };
+                }
+
+                mediaElement.src = data.mediaUrl;
+                previewContainer.appendChild(mediaElement);
+                downloadBtn.href = data.mediaUrl + '&download=true';
+                
                 resultDiv.classList.remove('hidden');
-                previewImage.onload = () => {
-                    previewImage.classList.remove('opacity-0');
-                };
             } catch (error) {
                 alert('Error: ' + error.message);
             }
@@ -86,45 +105,51 @@ const htmlContent = `
 </html>
 `;
 
-async function handleMediaRequest(url) {
+async function extractMediaUrl(html) {
+    const metaPatterns = {
+        video: [
+            /<meta\s+property="og:video"\s+content="([^"]*)"/i,
+            /<meta\s+property="twitter:player:stream"\s+content="([^"]*)"/i
+        ],
+        image: [
+            /<meta\s+property="og:image"\s+content="([^"]*)"/i,
+            /<meta\s+property="twitter:image:src"\s+content="([^"]*)"/i
+        ]
+    };
+
+    for (const regex of metaPatterns.video) {
+        const match = html.match(regex);
+        if (match) return { url: match[1], type: 'video' };
+    }
+
+    for (const regex of metaPatterns.image) {
+        const match = html.match(regex);
+        if (match) return { url: match[1], type: 'image' };
+    }
+
+    throw new Error('No media found in the page');
+}
+
+async function handleMediaRequest(pinterestUrl, request) {
     try {
-        const response = await fetch(url, {
+        const response = await fetch(pinterestUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Referer': 'https://www.pinterest.com/'
             }
         });
         
         const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        
-        // Extract media URL from meta tags
-        const metaImage = doc.querySelector('meta[property="og:image"]') || 
-                          doc.querySelector('meta[property="twitter:image:src"]');
-        
-        // For video content
-        const metaVideo = doc.querySelector('meta[property="og:video"]') || 
-                         doc.querySelector('meta[property="twitter:player:stream"]');
-
-        const mediaUrl = metaVideo ? metaVideo.content : metaImage.content;
-
-        // Handle Pinterest CDN redirects
+        const { url: mediaUrl, type } = await extractMediaUrl(html);
         const finalResponse = await fetch(mediaUrl);
         const finalUrl = finalResponse.url;
 
-        return new Response(JSON.stringify({
-            mediaUrl: finalUrl,
-            type: metaVideo ? 'video' : 'image'
-        }), {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return {
+            mediaUrl: `${new URL(request.url).origin}/api/proxy?url=${encodeURIComponent(finalUrl)}`,
+            type
+        };
     } catch (error) {
-        return new Response(JSON.stringify({
-            error: 'Failed to fetch media. Make sure the URL is valid.'
-        }), { 
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return { error: error.message };
     }
 }
 
@@ -134,9 +159,38 @@ export default {
         
         if (url.pathname === '/api/download') {
             const pinterestUrl = url.searchParams.get('url');
-            return handleMediaRequest(pinterestUrl);
+            const result = await handleMediaRequest(pinterestUrl, request);
+            return new Response(JSON.stringify(result), {
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            });
         }
-        
+
+        if (url.pathname === '/api/proxy') {
+            const mediaUrl = url.searchParams.get('url');
+            return fetch(mediaUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Referer': 'https://www.pinterest.com/'
+                }
+            }).then(res => {
+                const headers = new Headers(res.headers);
+                headers.set('Access-Control-Allow-Origin', '*');
+                
+                if (url.searchParams.has('download')) {
+                    const ext = mediaUrl.includes('.mp4') ? 'mp4' : 'jpg';
+                    headers.set('Content-Disposition', `attachment; filename="pinterest-media.${ext}"`);
+                }
+
+                return new Response(res.body, {
+                    status: res.status,
+                    headers
+                });
+            });
+        }
+
         return new Response(htmlContent, {
             headers: { 'Content-Type': 'text/html' }
         });
