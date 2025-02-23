@@ -106,14 +106,17 @@ const htmlContent = `
 `;
 
 async function extractMediaUrl(html) {
+    // Updated regex patterns to match Pinterest's current HTML structure
     const metaPatterns = {
         video: [
+            /<meta\s+property="og:video:secure_url"\s+content="([^"]*)"/i,
             /<meta\s+property="og:video"\s+content="([^"]*)"/i,
             /<meta\s+property="twitter:player:stream"\s+content="([^"]*)"/i
         ],
         image: [
             /<meta\s+property="og:image"\s+content="([^"]*)"/i,
-            /<meta\s+property="twitter:image:src"\s+content="([^"]*)"/i
+            /<meta\s+property="twitter:image:src"\s+content="([^"]*)"/i,
+            /<meta\s+name="pinterest:media"\s+content="([^"]*)"/i
         ]
     };
 
@@ -127,7 +130,7 @@ async function extractMediaUrl(html) {
         if (match) return { url: match[1], type: 'image' };
     }
 
-    throw new Error('No media found in the page');
+    throw new Error('No media found in the page. Ensure the URL is a valid Pinterest post.');
 }
 
 async function handleMediaRequest(pinterestUrl, request) {
@@ -159,6 +162,12 @@ export default {
         
         if (url.pathname === '/api/download') {
             const pinterestUrl = url.searchParams.get('url');
+            if (!pinterestUrl || !pinterestUrl.includes('pinterest.com')) {
+                return new Response(JSON.stringify({ error: 'Invalid Pinterest URL' }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
             const result = await handleMediaRequest(pinterestUrl, request);
             return new Response(JSON.stringify(result), {
                 headers: { 
